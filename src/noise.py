@@ -21,11 +21,11 @@ def get_collapse_operators(I, T2_star_m, exponent_m, T2_star_e=None, exponent_e=
     T2_star_m : float
         Characteristic dephasing time for magnetic (Iz) noise.
     exponent_m : float
-        Stretch exponent for magnetic noise.
+        Exponent for magnetic noise.
     T2_star_e : float, optional
-        Characteristic dephasing time for electric (Iz²) noise.
+        Characteristic dephasing time for electric (Iz^2) noise.
     exponent_e : float, optional
-        Stretch exponent for electric noise.
+        Exponent for electric noise.
 
     Returns
     -------

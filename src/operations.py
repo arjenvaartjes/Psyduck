@@ -143,8 +143,8 @@ def subspace_rotation_operator(I: float, angle: float, axis: ndarray) -> qt.Qobj
     Rrot = Rrot_exponent.expm()
 
     # Pad with zeros to fit an 8x8 matrix
-    Rrot = np.pad(Rrot, (((8 - d) // 2, (8 - d) // 2), ((8 - d) // 2, (8 - d) // 2)), 
-                  'constant', constant_values=0)
+    pad = (8 - d) // 2
+    Rrot = np.pad(Rrot.full(), ((pad, pad), (pad, pad)), 'constant', constant_values=0)
     return Rrot
 
 def snap(phases, dim: int=8):

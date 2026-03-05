@@ -710,10 +710,15 @@ class ExponentialFit(Fit):
             exponent_val = (initial_parameters['offset']
                             + initial_parameters['amplitude'] / np.exp(1))
             nearest_idx = np.abs(ydata - exponent_val).argmin()
-            initial_parameters['tau'] = -(xvals[1] - xvals[nearest_idx])
+            tau_est = xvals[nearest_idx] - xvals[0]
+            if tau_est <= 0:
+                tau_est = (xvals[-1] - xvals[0]) / 2
+            initial_parameters['tau'] = tau_est
 
         for key in initial_parameters:
             parameters.add(key, initial_parameters[key])
+
+        parameters['tau'].min = 1e-30
 
         return parameters
 
