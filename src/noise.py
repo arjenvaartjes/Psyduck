@@ -1,7 +1,7 @@
 """Noise models for open spin system dynamics (Lindblad collapse operators)."""
 
 import numpy as np
-from operations import get_spin_operators
+from .operations import get_spin_operators
 
 
 def get_collapse_operators(I, T2_star_m, exponent_m, T2_star_e=None, exponent_e=None):

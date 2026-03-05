@@ -4,6 +4,7 @@ import qutip as qt
 import numpy as np
 from typing import Union, Tuple
 from numpy import ndarray
+from .fit_toolbox import ExponentialFit
 
 
 # ============================================================================
@@ -124,7 +125,7 @@ def rotation_operator(I: float, angle: float, axis: Union[str, ndarray]) -> qt.Q
     return U
 
 def subspace_rotation_operator(I: float, angle: float, axis: ndarray) -> qt.Qobj:
-    """Subspace rotation operator around an arbitrary axis.
+    """Subspace rotation operator around an arbitrary axis. Pad the matrix to fit an 8x8 dimension for our spin-7/2 system.
     
     :param I: Spin quantum number
     :param angle: Rotation angle in radians
@@ -181,3 +182,51 @@ def permutation_operator(element1: int, element2: int, I: float = 7/2) -> qt.Qob
     U[element1, element1] = 0
     U[element2, element2] = 0
     return qt.Qobj(U)
+
+def parity_operator(I: float) -> qt.Qobj:
+    """
+    Generates a parity operator that flips the sign of the odd elements in a matrix.
+
+    Returns:
+    : A parity operator that flips the sign of the odd elements in a matrix.
+    """
+    d = int(2 * I + 1)
+    U = np.eye(d)
+    for i in range(d):
+        if i % 2 == 1:  # Flip sign for odd indices
+            U[i, i] = -1
+    return qt.Qobj(U)
+
+def free_decay(psi0s, times, c_ops):
+    """Simulate free decay for a list of initial states and fit T2* times.
+
+    Parameters
+    ----------
+    psi0s : list of Qobj
+        Initial states to simulate.
+    times : array_like
+        Time points for the simulation.
+    c_ops : list
+        Collapse operators (from get_collapse_operators).
+
+    Returns
+    -------
+    fidelity : ndarray, shape (len(psi0s), len(times))
+    T2s : ndarray, shape (len(psi0s),)
+    alphas : ndarray, shape (len(psi0s),)
+    """
+    dim = psi0s[0].shape[0]
+    H0 = qt.qzero(dim)
+
+    fidelity = np.zeros([len(psi0s), len(times)])
+    T2s = np.zeros(len(psi0s))
+    alphas = np.zeros(len(psi0s))
+
+    for p, psi0 in enumerate(psi0s):
+        result = qt.mesolve(H0, psi0, times, c_ops)
+        fidelity[p] = qt.expect(psi0 * psi0.dag(), result.states)
+        fit = ExponentialFit(fidelity[p], xvals=times)
+        T2s[p] = fit['tau']
+        alphas[p] = fit['exponent_factor']
+
+    return fidelity, T2s, alphas
