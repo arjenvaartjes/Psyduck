@@ -143,6 +143,15 @@ class Spin:
         :param U: Unitary operator (Qobj)
         """
         self.state = U * self.state
+
+    def global_rotate(self, angle: float, axis: str = 'x') -> None:
+        """Apply a global rotation to the spin state.
+        
+        :param angle: Rotation angle in radians
+        :param axis: Rotation axis ('x', 'y', or 'z')
+        """
+        U = global_rotation(self.I, angle, axis)
+        self.apply_operator(U)
     
     def copy(self) -> 'Spin':
         """Create a deep copy of this Spin object.
