@@ -74,10 +74,9 @@ Notebooks modelling what happens to the nuclear spin state when the electron is 
 
 ```python
 from src.spin import Spin
-from src.operations import pulse_operator
 
-nucleus = Spin(I=7/2)          # initialise Sb nucleus in ground state
-nucleus.rotate(angle=np.pi/2, axis='x')   # apply π/2 pulse about x
+nucleus = Spin(I=7/2)          # initialise Sb nucleus
+nucleus.global_rotate(angle=np.pi/2, axis='x')   # apply π/2 pulse about x
 print(nucleus.Iz())            # expectation value of Iz
 ```
 
