@@ -81,22 +81,7 @@ def rf_hamiltonian(I: float, B1: float, omega_rf: float,
 # Unitary Operators
 # ============================================================================
 
-def pulse_operator(I: float, angle: float, axis: str = 'x') -> qt.Qobj:
-    """RF pulse operator (rotation around specified axis).
-    
-    U = exp(-i * angle * I_axis)
-    
-    :param I: Spin quantum number
-    :param angle: Rotation angle in radians
-    :param axis: Rotation axis ('x', 'y', or 'z')
-    :return: Pulse (rotation) operator
-    """
-    I_axis = qt.jmat(I, axis)
-    U = (-1j * angle * I_axis).expm()
-    return U
-
-
-def rotation_operator(I: float, angle: float, axis: Union[str, ndarray]) -> qt.Qobj:
+def global_rotation(I: float, angle: float, axis: Union[str, ndarray]) -> qt.Qobj:
     """Rotation operator around arbitrary axis or principal axis.
     
     :param I: Spin quantum number
@@ -197,6 +182,16 @@ def parity_operator(I: float) -> qt.Qobj:
             U[i, i] = -1
     return qt.Qobj(U)
 
+def global_pi(I, axis='x'):
+    """Generate a global pi pulse operator for a given spin and axis."""
+    return global_rotation(I, np.pi, axis)
+
+
+# ============================================================================
+# Operation processes 
+# ============================================================================
+
+
 def free_decay(psi0s, times, c_ops):
     """Simulate free decay for a list of initial states and fit T2* times.
 
@@ -230,3 +225,5 @@ def free_decay(psi0s, times, c_ops):
         alphas[p] = fit['exponent_factor']
 
     return fidelity, T2s, alphas
+
+

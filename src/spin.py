@@ -4,7 +4,7 @@ import qutip as qt
 import numpy as np
 from typing import Union, List
 from numpy import ndarray
-from .operations import parity_operator, rotation_operator
+from .operations import parity_operator, global_rotation
 
 
 class Spin:
@@ -89,7 +89,7 @@ class Spin:
         d = int(2 * self.I + 1)
         psi_cat_z = (qt.basis(d, 0) + np.exp(1j * phi) * qt.basis(d, d - 1)).unit()
         # Rotate to x-axis using a pi/2 rotation around y-axis
-        R_y = rotation_operator(self.I, np.pi / 2, 'y')
+        R_y = global_rotation(self.I, np.pi / 2, 'y')
         self.state = R_y * psi_cat_z
 
     def parity(self) -> float:
