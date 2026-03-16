@@ -109,29 +109,30 @@ def global_rotation(I: float, angle: float, axis: Union[str, ndarray]) -> qt.Qob
     
     return U
 
-def subspace_rotation_operator(I: float, angle: float, axis: ndarray) -> qt.Qobj:
-    """Subspace rotation operator around an arbitrary axis. Pad the matrix to fit an 8x8 dimension for our spin-7/2 system.
-    
+def subspace_rotation(I: float, angle: float, axis: Union[str, ndarray], levels: tuple) -> qt.Qobj:
+    """Rotation operator in a multi-level subspace.
+
+    Treats the k selected levels as a spin-(k-1)/2 system and applies the
+    corresponding rotation, leaving all other levels unchanged.
+    The two-level case (k=2) is a Givens rotation.
+
     :param I: Spin quantum number
     :param angle: Rotation angle in radians
-    :param axis: Rotation axis as a 3-element array
-    :return: Subspace rotation operator
+    :param axis: Rotation axis - 'x', 'y', 'z', or 3-element array
+    :param levels: Tuple of magnetic quantum numbers defining the subspace
+    :return: Rotation operator (Qobj)
     """
-    d = int(2 * I + 1)
-    axis = np.array(axis, dtype=float)
-    norm = np.linalg.norm(axis)
-    if norm == 0:
-        raise ValueError("Rotation axis cannot be zero vector")
-    axis = axis / norm
+    d_full = int(2 * I + 1)
+    indices = [int(I - m) for m in levels]
+    k = len(indices)
 
-    Ix, Iy, Iz = get_spin_operators(I)
-    Rrot_exponent = 1j * angle * (axis[0] * Ix + axis[1] * Iy + axis[2] * Iz)
-    Rrot = Rrot_exponent.expm()
+    I_sub = (k - 1) / 2
+    U_sub = global_rotation(I_sub, angle, axis).full()
 
-    # Pad with zeros to fit an 8x8 matrix
-    pad = (8 - d) // 2
-    Rrot = np.pad(Rrot.full(), ((pad, pad), (pad, pad)), 'constant', constant_values=0)
-    return Rrot
+    U = np.eye(d_full, dtype=np.complex128)
+    U[np.ix_(indices, indices)] = U_sub
+
+    return qt.Qobj(U)
 
 def snap(phases, dim: int=8):
     """
@@ -161,6 +162,7 @@ def permutation_operator(element1: int, element2: int, I: float = 7/2) -> qt.Qob
     Returns:
     : A permutation matrix that swaps the elements at indices element1 and element2.
     """
+    d = int(2 * I + 1)
     U = np.eye(d)
     U[element1, element2] = 1
     U[element2, element1] = 1

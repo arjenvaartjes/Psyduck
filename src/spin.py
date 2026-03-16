@@ -4,7 +4,7 @@ import qutip as qt
 import numpy as np
 from typing import Union, List
 from numpy import ndarray
-from .operations import parity_operator, global_rotation
+from .operations import parity_operator, global_rotation, subspace_rotation
 
 
 class Spin:
@@ -144,13 +144,23 @@ class Spin:
         """
         self.state = U * self.state
 
-    def global_rotate(self, angle: float, axis: str = 'x') -> None:
+    def global_rotate(self, angle: float, axis: Union[str, ndarray]) -> None:
         """Apply a global rotation to the spin state.
-        
+
         :param angle: Rotation angle in radians
-        :param axis: Rotation axis ('x', 'y', or 'z')
+        :param axis: Rotation axis - 'x', 'y', 'z', or 3-element array
         """
         U = global_rotation(self.I, angle, axis)
+        self.apply_operator(U)
+
+    def subspace_rotate(self, angle: float, axis: Union[str, ndarray], levels: tuple) -> None:
+        """Apply a rotation in a two-level subspace (Givens rotation).
+
+        :param angle: Rotation angle in radians
+        :param axis: Rotation axis - 'x', 'y', 'z', or 3-element array
+        :param levels: Tuple (m1, m2) of magnetic quantum numbers defining the subspace
+        """
+        U = subspace_rotation(self.I, angle, axis, levels)
         self.apply_operator(U)
     
     def copy(self) -> 'Spin':
