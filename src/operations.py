@@ -38,9 +38,27 @@ def zeeman_hamiltonian(I: float, B0: float, gamma: float = 1.0) -> qt.Qobj:
     return -gamma * B0 * Iz
 
 
-def quadrupole_hamiltonian() -> None:
-    """Quadrupole Hamiltonian.""" # ToDo: either get from fit or construct with tensor
-    pass
+def quadrupole_hamiltonian(I: float, V_ab: ndarray, Q: float,
+                           e: float = 1.6e-19, h: float = 6.626e-34) -> qt.Qobj:
+    """Quadrupole Hamiltonian for a nuclear spin.
+
+    H = sum_{a,b} Q_ab[a,b] * I_a * I_b,  where Q_ab = e*Q*V_ab / (2I(2I-1)*h)
+
+    :param I: Nuclear spin quantum number
+    :param V_ab: 3x3 EFG tensor in SI units (V/m²)
+    :param Q: Nuclear quadrupole moment (C·m²)
+    :param e: Elementary charge (default 1.6e-19 C)
+    :param h: Planck constant (default 6.626e-34 J·s)
+    :return: Quadrupole Hamiltonian in Hz
+    """
+    Ix, Iy, Iz = get_spin_operators(I)
+    I_vec = [Ix, Iy, Iz]
+    Q_ab = e * Q * V_ab / (2 * I * (2 * I - 1)) / h
+    H_quad = 0
+    for alpha in range(3):
+        for beta in range(3):
+            H_quad += Q_ab[alpha, beta] * I_vec[alpha] * I_vec[beta]
+    return qt.Qobj(H_quad)
 
 def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:
     """Hyperfine interaction Hamiltonian for electron and nuclear spins.
@@ -148,6 +166,12 @@ def snap(phases, dim: int=8):
     U = np.eye(dim, dtype=np.complex128)
     for i, p in enumerate(phases):
         U[i, i] = np.exp(1j*p)
+    return qt.Qobj(U)
+
+def shift_operator(I: float):
+    d = int(2 * I + 1)
+    U = np.diag(np.ones(d-1), 1)
+    U[d-1, 0] = 1
     return qt.Qobj(U)
 
 def permutation_operator(element1: int, element2: int, I: float = 7/2) -> qt.Qobj:

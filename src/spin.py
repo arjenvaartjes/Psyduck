@@ -4,7 +4,7 @@ import qutip as qt
 import numpy as np
 from typing import Union, List
 from numpy import ndarray
-from .operations import parity_operator, global_rotation, subspace_rotation
+from .operations import parity_operator, global_rotation, subspace_rotation, shift_operator
 
 
 class Spin:
@@ -161,6 +161,10 @@ class Spin:
         :param levels: Tuple (m1, m2) of magnetic quantum numbers defining the subspace
         """
         U = subspace_rotation(self.I, angle, axis, levels)
+        self.apply_operator(U)
+
+    def shift(self):
+        U = shift_operator(self.I)
         self.apply_operator(U)
     
     def copy(self) -> 'Spin':
