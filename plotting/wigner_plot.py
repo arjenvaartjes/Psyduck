@@ -139,9 +139,114 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
 #     ax.set_xlabel('x')
 
 #     ax.grid(False)
-    ax.w_xaxis.set_pane_color((0.85, 0.85, 0.85, 1))
-    ax.w_yaxis.set_pane_color((0.8, 0.8, 0.8, 1))
-    ax.w_zaxis.set_pane_color((0.825, 0.825, 0.825, 1))
+    ax.xaxis.pane.set_facecolor((0.85, 0.85, 0.85, 1))
+    ax.yaxis.pane.set_facecolor((0.8, 0.8, 0.8, 1))
+    ax.zaxis.pane.set_facecolor((0.825, 0.825, 0.825, 1))
     ax.view_init(22, -60)
 
     return fig, ax, wigner, theta_mesh, phi_mesh
+
+
+def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+    """Plot spin Wigner function as a coloured surface on a sphere."""
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(-np.pi, np.pi, n_phi)
+    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+
+    x = np.sin(theta_mesh) * np.cos(phi_mesh)
+    y = np.sin(theta_mesh) * np.sin(phi_mesh)
+    z = np.cos(theta_mesh)
+
+    norm = mpl.colors.Normalize(vmin=W.min(), vmax=W.max())
+    cmap_obj = plt.get_cmap(cmap)
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(x, y, z, facecolors=cmap_obj(norm(W)), rstride=1, cstride=1, shade=False, **kwargs)
+    s = 1.1
+    ax.set_xlim([-s, s])
+    ax.set_ylim([-s, s])
+    ax.set_zlim([-s, s])
+    ax.set_axis_off()
+    return fig, ax
+
+
+def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+    """Plot spin Wigner function on a Hammer equal-area projection."""
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(-np.pi, np.pi, n_phi)
+    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+
+    if ax is None:
+        fig, ax = plt.subplots(subplot_kw={'projection': 'hammer'})
+    ax.pcolormesh(phi_mesh, theta_mesh - np.pi / 2, W, cmap=cmap, **kwargs)
+    ax.set_xticklabels([])
+    ax.grid(False)
+    return fig, ax
+
+
+def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+    """Plot spin Wigner function on a polar (azimuthal equidistant) projection.
+
+    Azimuthal angle phi maps to the angular axis; polar angle theta maps to the
+    radial axis (theta=0 at centre, theta=pi at the outer edge).
+    """
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(0, 2 * np.pi, n_phi)
+    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+
+    if ax is None:
+        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.pcolormesh(phi_mesh, theta_mesh, W, cmap=cmap, **kwargs)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    return fig, ax
+
+
+def make_wigner_gif(states, filename='wigner.gif', projection='hammer', fps=10, dpi=100, **kwargs):
+    """Create a GIF of the spin Wigner function over a sequence of states.
+
+    :param states: list of qt.Qobj kets, or (N, d) complex numpy array where each
+                   row is a flattened state vector (e.g. from nucleus.state.full().flatten())
+    :param filename: output filename (default 'wigner.gif')
+    :param projection: '3d', 'hammer', or 'polar' (default '3d')
+    :param fps: frames per second
+    :param dpi: figure resolution
+    :param kwargs: passed to the underlying plot function (n_theta, n_phi, cmap, etc.)
+    :return: filename
+    """
+    import io
+    from PIL import Image
+
+    if isinstance(states, np.ndarray):
+        qstates = [Qobj(states[i].reshape(-1, 1)) for i in range(states.shape[0])]
+    else:
+        qstates = list(states)
+
+    _plot_funcs = {
+        '3d':     wigner_plot_3d,
+        'hammer': wigner_plot_hammer,
+        'polar':  wigner_plot_polar,
+    }
+    if projection not in _plot_funcs:
+        raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
+    plot_fn = _plot_funcs[projection]
+
+    frames = []
+    for state in qstates:
+        fig, ax = plot_fn(state, **kwargs)
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
+        buf.seek(0)
+        frames.append(Image.open(buf).copy())
+        plt.close(fig)
+
+    frames[0].save(
+        filename,
+        save_all=True,
+        append_images=frames[1:],
+        loop=0,
+        duration=int(1000 / fps),
+    )
+    return filename

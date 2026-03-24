@@ -167,6 +167,30 @@ class Spin:
         U = shift_operator(self.I)
         self.apply_operator(U)
     
+    def plot_wigner(self, projection: str = '3d', **kwargs):
+        """Plot the Wigner function of the current state.
+
+        :param projection: '3d', 'hammer', or 'polar' (default '3d')
+        :param kwargs: passed to the underlying plot function
+        :return: (fig, ax)
+        """
+        import sys, os
+        _root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+        if _root not in sys.path:
+            sys.path.insert(0, _root)
+        from plotting.wigner_plot import (wigner_plot_3d, projection_plot_spin_wigner,
+                                          wigner_plot_hammer, wigner_plot_polar)
+
+        _dispatch = {
+            '3d':     wigner_plot_3d,
+            '3d_projection': projection_plot_spin_wigner,
+            'hammer': wigner_plot_hammer,
+            'polar':  wigner_plot_polar,
+        }
+        if projection not in _dispatch:
+            raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
+        return _dispatch[projection](self.state, **kwargs)
+
     def copy(self) -> 'Spin':
         """Create a deep copy of this Spin object.
         

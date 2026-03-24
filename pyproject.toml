@@ -13,5 +13,6 @@ dependencies = [
     "pandas>=3.0.1",
     "qutip>=5.2.3",
     "scipy>=1.17.1",
+    "scipy-stubs~=1.17.1",
     "xarray>=2026.2.0",
 ]
