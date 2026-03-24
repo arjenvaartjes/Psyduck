@@ -4,7 +4,8 @@ import qutip as qt
 import numpy as np
 from typing import Union, List
 from numpy import ndarray
-from .operations import parity_operator, global_rotation, subspace_rotation, shift_operator
+from psyduck.operations import parity_operator, global_rotation, subspace_rotation, shift_operator
+from psyduck.plotting import wigner_plot_3d, projection_plot_spin_wigner, wigner_plot_hammer, wigner_plot_polar
 
 
 class Spin:
@@ -30,7 +31,7 @@ class Spin:
             self.state = state
         self.dm = self.state * self.state.dag()  # Density matrix
     
-    def expectation(self, operator: qt.Qobj) -> float:
+    def expectation(self, operator: qt.Qobj) -> complex | float:
         """Calculate expectation value of an operator.
         
         :param operator: Quantum operator (Qobj)
@@ -174,12 +175,6 @@ class Spin:
         :param kwargs: passed to the underlying plot function
         :return: (fig, ax)
         """
-        import sys, os
-        _root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
-        if _root not in sys.path:
-            sys.path.insert(0, _root)
-        from plotting.wigner_plot import (wigner_plot_3d, projection_plot_spin_wigner,
-                                          wigner_plot_hammer, wigner_plot_polar)
 
         _dispatch = {
             '3d':     wigner_plot_3d,
