@@ -1,4 +1,4 @@
-from src.spin import *
+from psyduck import Spin
 
 I = Spin(7/2)
 print("Initial state:", I.state)

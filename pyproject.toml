@@ -1,9 +1,9 @@
 [project]
 name = "psyduck"
-version = "0.1.0"
+version = "1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
@@ -16,3 +16,7 @@ dependencies = [
     "scipy-stubs~=1.17.1",
     "xarray>=2026.2.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
