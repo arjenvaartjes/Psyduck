@@ -4,6 +4,7 @@ import qutip as qt
 import numpy as np
 from typing import Union, Tuple
 from numpy import ndarray
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
@@ -16,27 +17,83 @@ def get_spin_operators(I: float) -> Tuple[qt.Qobj, qt.Qobj, qt.Qobj]:
     """
     return qt.jmat(I, 'x'), qt.jmat(I, 'y'), qt.jmat(I, 'z')
 
+def euler_rotation(phi, theta, psi):
+    """ZYZ Euler rotation matrix."""
+    cph, sph = np.cos(phi), np.sin(phi)
+    cth, sth = np.cos(theta), np.sin(theta)
+    cps, sps = np.cos(psi), np.sin(psi)
+
+    Rz1 = np.array([[ cph, -sph, 0],
+                     [ sph,  cph, 0],
+                     [   0,    0, 1]])
+    Ry  = np.array([[ cth, 0, sth],
+                     [   0, 1,   0],
+                     [-sth, 0, cth]])
+    Rz2 = np.array([[ cps, -sps, 0],
+                     [ sps,  cps, 0],
+                     [   0,    0, 1]])
+    return Rz1 @ Ry @ Rz2
 
 # ============================================================================
 # Hamiltonian Functions
 # ============================================================================
 
-def zeeman_hamiltonian(I: float, B0: float, gamma: float = 1.0) -> qt.Qobj:
-    """Zeeman Hamiltonian for a spin in a magnetic field.
+def zeeman_hamiltonian(I: float | list, B0: float, gamma: float | list = 1.0) -> qt.Qobj:
+    """Zeeman Hamiltonian for a spin in a magnetic field. If lists are given, make this return a tensor product sum
     
     H = -gamma * B0 * Iz
     
-    :param I: Spin quantum number
+    :param I: Spin quantum number (s)
     :param B0: Magnetic field strength
     :param gamma: Gyromagnetic ratio (default 1.0)
     :return: Zeeman Hamiltonian
     """
-    _, _, Iz = get_spin_operators(I) 
+    if isinstance(I, list):
+        # Tensor the spin systems
+        H = qt.tensor(qt.qzero(2*i+1) for i in I)
+        for inx in range(len(I)):
+            _, _, Iz = get_spin_operators(I[inx])
+            H += -gamma[inx] * B0 * qt.tensor(*(
+                    [qt.qeye(2*I[i]+1) for i in range(0, inx)] +
+                    [Iz] +
+                    [qt.qeye(2*I[i]+1) for i in range(inx+1, len(I))]
+            ))
+        return H
+    _, _, Iz = get_spin_operators(I)
     return -gamma * B0 * Iz
 
 
-def quadrupole_hamiltonian(I: float, V_ab: ndarray, Q: float,
-                           e: float = 1.6e-19, h: float = 6.626e-34) -> qt.Qobj:
+def quadrupole_hamiltonian(I, f_q, eta=0.0, theta=0.0, phi=0.0, psi=0.0):
+    """General quadrupole Hamiltonian with asymmetry and rotation.
+
+    :param I: Nuclear spin quantum number
+    :param f_q: Quadrupole splitting frequency (Hz)
+    :param eta: Asymmetry parameter (0 to 1)
+    :param theta: Polar tilt of PAF z-axis from B0 (rad)
+    :param phi: Azimuthal angle of PAF z-axis (rad)
+    :param psi: Twist around PAF z-axis (rad)
+    :return: Quadrupole Hamiltonian as Qobj (Hz)
+    """
+
+    # Convert f_q to the prefactor for the double sum
+    # f_q = 3*e*Q*V_zz / (2*I*(2I-1)*h), and the double sum uses
+    # e*Q*V_ab / (2*I*(2I-1)*h), so the prefactor per V_ab element
+    # relative to V_zz is f_q/3
+    V_zz_normalised = 1.0  # work in units where V_zz = 1
+    V_PAF = V_zz_normalised * np.diag([-(1-eta)/2, -(1+eta)/2, 1.0])
+
+    R = euler_rotation(phi, theta, psi)
+    V_lab = R @ V_PAF @ R.T
+
+    # Scale so that the double sum gives the correct f_q
+    Q_ab = (f_q / 3.0) * V_lab
+    I_vec = [*get_spin_operators(I)]
+    H = sum(Q_ab[a, b] * I_vec[a] * I_vec[b] for a in range(3) for b in range(3))
+    return qt.Qobj(H)
+
+
+def quadrupole_hamiltonian_from_Vab(I: float, V_ab: ndarray, Q: float,
+                                    e: float = 1.6e-19, h: float = 6.626e-34) -> qt.Qobj:
     """Quadrupole Hamiltonian for a nuclear spin.
 
     H = sum_{a,b} Q_ab[a,b] * I_a * I_b,  where Q_ab = e*Q*V_ab / (2I(2I-1)*h)
