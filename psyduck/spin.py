@@ -184,6 +184,9 @@ class Spin:
             raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
         return _dispatch[projection](self.state, **kwargs)
 
+    def state_labels(self):
+        return [f'|{self.dim-1 - 2*i}/2>' for i in range(0, self.dim)]
+
     def copy(self) -> 'Spin':
         """Create a deep copy of this Spin object.
         
