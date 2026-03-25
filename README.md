@@ -5,16 +5,17 @@ Simulation framework for high-spin qudit systems, with a focus on the antimony (
 
 ## Repository structure
 
-### `src/` — Core simulation library
-The canonical QuTiP-based library shared by all notebooks.
+### `psyduck/` — Core simulation library
 
 | File | Contents |
 |------|----------|
-| `spin.py` | `Spin` class — wraps a QuTiP state with helper methods for expectation values and state manipulation |
-| `operations.py` | Spin operators (`get_spin_operators`), Hamiltonians (Zeeman, quadrupole), pulse/rotation operators (`pulse_operator`, `rotation_operator`, `global_rotation`, `parity_operator`) |
+| `spin.py` | `Spin` class — wraps a QuTiP state with helper methods for expectation values, state preparation, rotations, and evolution |
+| `spin_series.py` | `SpinSeries` class — an ordered sequence of spin states over a coordinate axis (time, angle, field, …); returned by `Spin.evolve()` |
+| `operations.py` | Hamiltonians (Zeeman, quadrupole, RF), rotation/pulse operators, `parity_operator`, `shift_operator` |
 | `noise.py` | Lindblad collapse operators for magnetic (Iz) and electric/quadrupole (Iz²) dephasing noise |
+| `evolve.py` | Higher-level helpers: `free_decay()` for multi-state open-system evolution with T₂\* fitting |
 | `fit_toolbox.py` | Curve-fitting classes built on lmfit/xarray: `Fit`, `ExponentialFit`, `SineFit`, `RabiFrequencyFit`, `T1Fit`, and more |
-| `pulse_sequences.py` | Placeholder for composite pulse sequences |
+| `plotting/` | Wigner function visualisations (`wigner_plot_3d`, `wigner_plot_hammer`, `wigner_plot_polar`) and readout plots |
 
 ### `noise model/` — Dephasing and coherence modelling
 Notebooks studying how magnetic and electric noise limit coherence times.
@@ -73,11 +74,23 @@ Notebooks modelling what happens to the nuclear spin state when the electron is 
 ## Quick start
 
 ```python
-from src.spin import Spin
+from psyduck import Spin
+from psyduck.operations import zeeman_hamiltonian
+import numpy as np
 
-nucleus = Spin(I=7/2)          # initialise Sb nucleus
-nucleus.global_rotate(angle=np.pi/2, axis='x')   # apply π/2 pulse about x
-print(nucleus.Iz())            # expectation value of Iz
+nucleus = Spin(I=7/2)                              # initialise Sb nucleus
+nucleus.global_rotate(angle=np.pi/2, axis='x')    # apply π/2 pulse about x
+print(nucleus.Iz())                                # expectation value of Iz
+
+# Time evolution returns a SpinSeries
+H = zeeman_hamiltonian(7/2, B0=1.0)
+times = np.linspace(0, 1, 500)
+traj = nucleus.evolve(H, times)
+
+pop = traj.populations()       # shape (N, dim) — population of each Zeeman level
+iz  = traj.Iz()                # shape (N,)     — <Iz> at each time step
+par = traj.parity()            # shape (N,)     — parity expectation value
+spin_at_t = traj[250]          # Spin object at index 250
 ```
 
 ## Dependencies
