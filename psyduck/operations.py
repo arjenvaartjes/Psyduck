@@ -87,15 +87,100 @@ def nmr1_hamiltonian(I: float, B1: Union[float, list, ndarray],
     :param gamma: Gyromagnetic ratio (default 1.0)
     :return: RF Hamiltonian amplitude
     """
+    dim = int(2 * I + 1)
     I_axis = qt.jmat(I, axis)
     if isinstance(B1, float):
         return -gamma * B1 * I_axis
     else:
-        H_nmr = np.zeros((8, 8), dtype=complex)
+        H_nmr = np.zeros((dim, dim), dtype=complex)
         for i in range(len(B1)):
             H_nmr[i, i+1] = -gamma * I_axis[i, i+1] * B1[i]
             H_nmr[i+1, i] = -gamma * I_axis[i+1, i] * B1[i]
         return qt.Qobj(H_nmr)
+
+
+def ner1_hamiltonian(I: float,
+                     dQxz: Union[float, list, ndarray],
+                     dQyz: Union[float, list, ndarray],
+                     coupling: float = 1.0) -> qt.Qobj:
+    """NER Δm=1 Hamiltonian in the rotating frame.
+
+    Oscillating off-diagonal EFG components V_xz and V_yz drive Δm=1 transitions
+    via the anticommutators {{Ix, Iz}} and {{Iy, Iz}}:
+
+        H = coupling * (dQxz * {{Ix, Iz}} + dQyz * {{Iy, Iz}})
+
+    where {{A, B}} = AB + BA.
+
+    The two channels are physically independent:
+      - dQxz controls the real (in-phase) part of the drive
+      - dQyz controls the imaginary (quadrature) part of the drive
+
+    :param I: Spin quantum number
+    :param dQxz: Amplitude of the V_xz EFG component. Scalar for a global drive,
+                 or length-(2I) array to set each Δm=1 transition independently.
+    :param dQyz: Amplitude of the V_yz EFG component. Same shape convention as dQxz.
+    :param coupling: Prefactor absorbing eQ/(2I(2I-1)h) (default 1.0)
+    :return: NER Δm=1 Hamiltonian
+    """
+    Ix, Iy, Iz = get_spin_operators(I)
+    IxIz = Ix * Iz + Iz * Ix   # {Ix, Iz}
+    IyIz = Iy * Iz + Iz * Iy   # {Iy, Iz}
+
+    if np.ndim(dQxz) == 0 and np.ndim(dQyz) == 0:
+        return coupling * (float(dQxz) * IxIz + float(dQyz) * IyIz)
+
+    dQxz = np.asarray(dQxz)
+    dQyz = np.asarray(dQyz)
+    dim = int(2 * I + 1)
+    H = np.zeros((dim, dim), dtype=complex)
+    for i in range(dim - 1):
+        elem = coupling * (dQxz[i] * IxIz[i, i + 1] + dQyz[i] * IyIz[i, i + 1])
+        H[i, i + 1] = elem
+        H[i + 1, i] = np.conj(elem)
+    return qt.Qobj(H)
+
+
+def ner2_hamiltonian(I: float,
+                     dQxx_yy: Union[float, list, ndarray],
+                     dQxy: Union[float, list, ndarray],
+                     coupling: float = 1.0) -> qt.Qobj:
+    """NER Δm=2 Hamiltonian in the rotating frame.
+
+    Oscillating EFG components (V_xx - V_yy) and V_xy drive Δm=2 transitions
+    via the operators (Ix²-Iy²) and {{Ix, Iy}}:
+
+        H = coupling * (dQxx_yy * (Ix²-Iy²) + dQxy * {{Ix, Iy}})
+
+    where {{A, B}} = AB + BA.
+
+    The two channels are physically independent:
+      - dQxx_yy controls the real (in-phase) part of the drive
+      - dQxy controls the imaginary (quadrature) part of the drive
+
+    :param I: Spin quantum number
+    :param dQxx_yy: Amplitude of the (V_xx - V_yy) EFG component. Scalar for a global drive,
+                    or length-(2I-1) array to set each Δm=2 transition independently.
+    :param dQxy: Amplitude of the V_xy EFG component. Same shape convention as dQxx_yy.
+    :param coupling: Prefactor absorbing eQ/(2I(2I-1)h) (default 1.0)
+    :return: NER Δm=2 Hamiltonian
+    """
+    Ix, Iy, Iz = get_spin_operators(I)
+    Ixx_yy = Ix * Ix - Iy * Iy          # Ix² - Iy² = (I+² + I-²)/2
+    IxIy   = Ix * Iy + Iy * Ix          # {Ix, Iy}  = i(I-² - I+²)/2
+
+    if np.ndim(dQxx_yy) == 0 and np.ndim(dQxy) == 0:
+        return coupling * (float(dQxx_yy) * Ixx_yy + float(dQxy) * IxIy)
+
+    dQxx_yy = np.asarray(dQxx_yy)
+    dQxy    = np.asarray(dQxy)
+    dim = int(2 * I + 1)
+    H = np.zeros((dim, dim), dtype=complex)
+    for i in range(dim - 2):
+        elem = coupling * (dQxx_yy[i] * Ixx_yy[i, i + 2] + dQxy[i] * IxIy[i, i + 2])
+        H[i, i + 2] = elem
+        H[i + 2, i] = np.conj(elem)
+    return qt.Qobj(H)
 
 
 # ============================================================================
