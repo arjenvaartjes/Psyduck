@@ -11,3 +11,5 @@ from .readout_plot import (
     plot_transition_matrix,
     plot_eigenstate_decomposition
 )
+
+from .spin_series_plot import plot_populations
