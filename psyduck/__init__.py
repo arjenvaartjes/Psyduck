@@ -1,5 +1,6 @@
 from .spin import Spin
-import operations
+from .spin_series import SpinSeries
+from . import operations
 
 
-__all__ = ["Spin"]
+__all__ = ["Spin", "SpinSeries"]
