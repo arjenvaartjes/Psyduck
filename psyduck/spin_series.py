@@ -1,11 +1,11 @@
 """SpinSeries: a sequence of spin states over a coordinate axis."""
 
+from psyduck import SpinInterface
 import numpy as np
 import qutip as qt
-from psyduck.operations import parity_operator
 
 
-class SpinSeries:
+class SpinSeries(SpinInterface):
     """An ordered sequence of spin states, optionally labeled by a coordinate array.
 
     The coordinate axis can be time, angle, field, or any swept parameter.
@@ -31,17 +31,14 @@ class SpinSeries:
     def expectation(self, operator: qt.Qobj) -> np.ndarray:
         return np.array([qt.expect(operator, s) for s in self.states])
 
-    def Ix(self) -> np.ndarray:
-        return self.expectation(qt.jmat(self.I, 'x'))
+    def apply_operator(self, U: qt.Qobj):
+        self.states = [U * state for state in self.states]
 
-    def Iy(self) -> np.ndarray:
-        return self.expectation(qt.jmat(self.I, 'y'))
+    def copy(self):
+        return SpinSeries(self.states.copy(), self.I, coords=self.coords.copy(), result=self.result)
 
-    def Iz(self) -> np.ndarray:
-        return self.expectation(qt.jmat(self.I, 'z'))
-
-    def parity(self) -> np.ndarray:
-        return self.expectation(parity_operator(self.I))
+    def state_labels(self) -> list[str]:
+        return [f'|{self.dim - 1 - 2 * i}/2>' for i in range(0, self.dim)]
 
     def populations(self) -> np.ndarray:
         """Return state populations as an array of shape (N, dim).

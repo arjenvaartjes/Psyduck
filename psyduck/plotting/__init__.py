@@ -9,7 +9,7 @@ from .wigner_plot import (
 
 from .readout_plot import (
     plot_transition_matrix,
-    plot_eigenstate_decomposition
+    plot_transition_matrix_simplified
 )
 
 from .spin_series_plot import plot_populations
