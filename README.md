@@ -68,7 +68,6 @@ Notebooks modelling what happens to the nuclear spin state when the electron is 
 ### Root-level files
 | File | Contents |
 |------|----------|
-| `fit_toolbox.py` | Source copy of the fitting framework (also installed as `src/fit_toolbox.py`) |
 | `example.py` | Minimal usage example showing how to create a `Spin` object and compute expectation values |
 
 ## Quick start
