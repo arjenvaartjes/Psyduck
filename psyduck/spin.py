@@ -6,6 +6,7 @@ from typing import Union, List
 from numpy import ndarray
 from psyduck.operations import parity_operator, global_rotation, subspace_rotation, shift_operator
 from psyduck.plotting import wigner_plot_3d, projection_plot_spin_wigner, wigner_plot_hammer, wigner_plot_polar
+from psyduck.spin_series import SpinSeries
 
 
 class Spin:
@@ -20,7 +21,7 @@ class Spin:
         """Initialize a Spin object.
         
         :param I: Spin quantum number (e.g., 1/2, 1, 3/2, 7/2)
-        :param state: Initial quantum state. If None, initializes to ground state.
+        :param state: Initial quantum state. If None, initializes to ground state |7/2>.
         """
         self.I = I
         self.dim = int(2 * I + 1)  # Hilbert space dimension
@@ -62,6 +63,9 @@ class Spin:
         """
         Iz = qt.jmat(self.I, 'z')
         return self.expectation(Iz)
+
+    def make_eigenstate(self, eigenvalue):
+        self.state = qt.basis(self.dim, int(-eigenvalue + 7/2))
     
     def get_spin_operators(self) -> tuple:
         """Get the spin operators Ix, Iy, Iz as Qobj.
@@ -103,40 +107,34 @@ class Spin:
         parity_op = parity_operator(self.I)
         return self.expectation(parity_op)
     
-    def evolve(self, H: qt.Qobj, times: Union[float, List[float]], 
-               c_ops: List[qt.Qobj] = None) -> qt.Result:
+    def evolve(self, H: qt.Qobj, times: Union[float, List[float]],
+               c_ops: List[qt.Qobj] = None) -> SpinSeries:
         """Evolve the spin under a Hamiltonian.
-        
-        Uses QuTiP's Schrödinger equation solver (sesolve).
-        
+
+        Uses QuTiP's sesolve (closed) or mesolve (open system).
+
         :param H: Hamiltonian (Qobj)
         :param times: Evolution time(s) - float for single time point, or list of times
         :param c_ops: Collapse operators for open system evolution (default None for closed system)
-        :return: Result object with final state(s) and expectation values
+        :return: SpinSeries over the requested times
         """
-        # Convert single time to list
         if isinstance(times, (int, float)):
             times = [0, times]
         else:
             times = list(times)
-        
-        # Ensure times is sorted and starts from 0
+
         if times[0] != 0:
             times = [0] + sorted(times)
-        times = sorted(set(times))  # Remove duplicates and sort
-        
-        # Run solver
+        times = sorted(set(times))
+
         if c_ops is None or len(c_ops) == 0:
-            # Closed system: sesolve
             result = qt.sesolve(H, self.state, times)
         else:
-            # Open system: use mesolve with collapse operators
             result = qt.mesolve(H, self.state, times, c_ops)
-        
-        # Update internal state to final state
+
         self.state = result.states[-1]
-        
-        return result
+
+        return SpinSeries.from_result(result, self.I, coords=times)
     
     def apply_operator(self, U: qt.Qobj) -> None:
         """Apply a unitary operator to the current state.
@@ -154,7 +152,7 @@ class Spin:
         U = global_rotation(self.I, angle, axis)
         self.apply_operator(U)
 
-    def subspace_rotate(self, angle: float, axis: Union[str, ndarray], levels: tuple) -> None:
+    def subspace_rotate(self, angle: float, axis: Union[str, ndarray], levels: Union[tuple, list, ndarray]) -> None:
         """Apply a rotation in a two-level subspace (Givens rotation).
 
         :param angle: Rotation angle in radians
@@ -185,6 +183,9 @@ class Spin:
         if projection not in _dispatch:
             raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
         return _dispatch[projection](self.state, **kwargs)
+
+    def state_labels(self):
+        return [f'|{self.dim-1 - 2*i}/2>' for i in range(0, self.dim)]
 
     def copy(self) -> 'Spin':
         """Create a deep copy of this Spin object.

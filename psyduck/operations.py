@@ -4,8 +4,6 @@ import qutip as qt
 import numpy as np
 from typing import Union, Tuple
 from numpy import ndarray
-
-
 # ============================================================================
 # Helper Functions
 # ============================================================================
@@ -75,23 +73,29 @@ def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:
     H_hyperfine = A * (qt.tensor(Sx, Ix) + qt.tensor(Sy, Iy) + qt.tensor(Sz, Iz))
     return H_hyperfine
 
-def rf_hamiltonian(I: float, B1: float, omega_rf: float, 
+def nmr1_hamiltonian(I: float, B1: Union[float, list, ndarray],
                    axis: str = 'x', gamma: float = 1.0) -> qt.Qobj:
-    """Radiofrequency field Hamiltonian in the lab frame.
+    """Radiofrequency field Hamiltonian in the rotating frame.
     
-    H = -gamma * B1 * I_axis * cos(omega_rf * t)
+    H = -gamma * B1 * I_axis * cos(omega_rf)
     
     Note: This returns the time-independent envelope for use with time-dependent solvers.
     
     :param I: Spin quantum number
     :param B1: RF field strength
-    :param omega_rf: RF frequency
-    :param axis: Rotation axis ('x', 'y', or 'z')
+    :param axis: Rotation axis ('x' or 'y')
     :param gamma: Gyromagnetic ratio (default 1.0)
     :return: RF Hamiltonian amplitude
     """
     I_axis = qt.jmat(I, axis)
-    return -gamma * B1 * I_axis
+    if isinstance(B1, float):
+        return -gamma * B1 * I_axis
+    else:
+        H_nmr = np.zeros((8, 8), dtype=complex)
+        for i in range(len(B1)):
+            H_nmr[i, i+1] = -gamma * I_axis[i, i+1] * B1[i]
+            H_nmr[i+1, i] = -gamma * I_axis[i+1, i] * B1[i]
+        return qt.Qobj(H_nmr)
 
 
 # ============================================================================
