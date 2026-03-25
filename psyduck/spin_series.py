@@ -56,6 +56,16 @@ class SpinSeries:
                 out[i] = np.real(s.diag())
         return out
 
+    def plot_populations(self, coord_label=None, levels=None):
+        """Plot Zeeman level populations over the coordinate axis.
+
+        :param coord_label: x-axis label.
+        :param levels: List of level indices to include. Defaults to all.
+        :return: (fig, axes)
+        """
+        from psyduck.plotting.spin_series_plot import plot_populations
+        return plot_populations(self, coord_label=coord_label, levels=levels)
+
     def __len__(self) -> int:
         return len(self.states)
 
