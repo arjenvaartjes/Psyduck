@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(py -c \":*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(python3.10.exe -c \":*)"
     ]
   }
 }
