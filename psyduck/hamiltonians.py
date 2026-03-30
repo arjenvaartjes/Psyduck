@@ -224,12 +224,12 @@ def ner2_hamiltonian(I: float,
 
 def drive_hamiltonian(
     I: float,
-    time_array: ndarray,
+    time_array: Union[float, ndarray],
     drive_amplitudes: ndarray,
     drive_frequencies: ndarray,
     rotating_frame_frequencies: ndarray,
     cross_coupling_cutoff: float = None,
-) -> list:
+) -> Union[qt.Qobj, list]:
     """GRF drive Hamiltonian for multi-tone RF pulses.
 
     Builds a QuTiP time-dependent Hamiltonian list (drive part only) in the
@@ -241,14 +241,20 @@ def drive_hamiltonian(
     where the sum over frequency components j is restricted to those satisfying
     |f_j - f_k| < cross_coupling_cutoff (or unrestricted if None).
 
-    The result is a list of [operator, coefficient_array] pairs, with
-    coefficients already in rad/s, ready to be spliced into a QuTiP Hamiltonian:
+    When time_array is a 1-D array the result is a list of [operator,
+    coefficient_array] pairs ready to splice into a QuTiP Hamiltonian:
 
         H = [2*pi*H_static, *drive_hamiltonian(...)]
 
+    When time_array is a scalar float the result is a single static qt.Qobj
+    (the instantaneous Hamiltonian at that time), and drive_amplitudes must
+    have shape (n_freqs,).
+
     :param I: Spin quantum number
-    :param time_array: 1-D array of time points (s), length T
-    :param drive_amplitudes: Complex drive amplitudes, shape (n_freqs, T).
+    :param time_array: 1-D array of time points (s), length T, or a single
+        float for an instantaneous snapshot.
+    :param drive_amplitudes: Complex drive amplitudes. Shape (n_freqs, T) when
+        time_array is an array, or (n_freqs,) when time_array is a scalar.
         The imaginary part encodes the Y-phase (e.g. 1j * amp gives an Iy rotation).
     :param drive_frequencies: Drive frequencies (Hz), shape (n_freqs,)
     :param rotating_frame_frequencies: Rotating frame frequency for each
@@ -257,19 +263,37 @@ def drive_hamiltonian(
     :param cross_coupling_cutoff: Frequency cutoff (Hz) for including
         off-resonant drive components. None includes all components (default).
         Set to a small value (e.g. 0.5) to suppress all cross-coupling.
-    :return: List of [Qobj, ndarray] pairs for use with qt.sesolve / qt.mesolve.
+    :return: Static qt.Qobj for scalar time, or list of [Qobj, ndarray] pairs
+        for an array time.
     """
     drive_amplitudes = np.asarray(drive_amplitudes, dtype=complex)
     drive_frequencies = np.asarray(drive_frequencies)
     rotating_frame_frequencies = np.asarray(rotating_frame_frequencies)
 
     n_transitions = int(2 * I)
-    assert drive_amplitudes.shape == (len(drive_frequencies), len(time_array)), \
-        "drive_amplitudes must have shape (n_freqs, len(time_array))"
     assert len(rotating_frame_frequencies) == n_transitions, \
         f"rotating_frame_frequencies must have length 2I = {n_transitions}"
 
     Tx, Ty = get_transition_operators(I)
+    scalar_input = np.ndim(time_array) == 0
+
+    if scalar_input:
+        t = float(time_array)
+        assert drive_amplitudes.shape == (len(drive_frequencies),), \
+            "For scalar time, drive_amplitudes must have shape (n_freqs,)"
+        d = int(2 * I + 1)
+        H = qt.Qobj(np.zeros((d, d), dtype=complex))
+        for k in range(n_transitions):
+            f_rf = rotating_frame_frequencies[k]
+            signal = 0j
+            for j, f in enumerate(drive_frequencies):
+                if cross_coupling_cutoff is None or abs(f - f_rf) < cross_coupling_cutoff:
+                    signal += drive_amplitudes[j] * np.exp(2j * np.pi * (f - f_rf) * t)
+            H += 2 * np.pi * (np.real(signal) * Tx[k] + np.imag(signal) * Ty[k])
+        return H
+
+    assert drive_amplitudes.shape == (len(drive_frequencies), len(time_array)), \
+        "drive_amplitudes must have shape (n_freqs, len(time_array))"
 
     H_drive = []
     for k in range(n_transitions):
