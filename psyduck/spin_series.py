@@ -30,6 +30,9 @@ class SpinSeries(SpinInterface):
 
     def expectation(self, operator: qt.Qobj) -> np.ndarray:
         return np.array([qt.expect(operator, s) for s in self.states])
+    
+    def fidelity(self, target_state: qt.Qobj) -> np.ndarray:
+        return np.array([qt.fidelity(s, target_state) for s in self.states])
 
     def apply_operator(self, U: qt.Qobj):
         self.states = [U * state for state in self.states]

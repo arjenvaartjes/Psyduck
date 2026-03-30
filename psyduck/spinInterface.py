@@ -42,6 +42,15 @@ class SpinInterface(ABC):
         ...
 
     @abstractmethod
+    def fidelity(self, target_state: qt.Qobj) -> float:
+        """Calculate fidelity with respect to a target state.
+
+        :param target_state: Target quantum state (Qobj)
+        :return: Fidelity value between 0 and 1
+        """
+        ...
+
+    @abstractmethod
     def __repr__(self) -> str:
         ...
 
@@ -89,6 +98,14 @@ class SpinInterface(ABC):
         """
         parity_op = parity_operator(self.I)
         return self.expectation(parity_op)
+    
+    def fidelity(self, target_state: qt.Qobj) -> float:
+        """Calculate fidelity with respect to a target state.
+
+        :param target_state: Target quantum state (Qobj)
+        :return: Fidelity value between 0 and 1
+        """
+        return qt.fidelity(self.state, target_state)
     
     def global_rotate(self, angle: float, axis: Union[str, ndarray]) -> None:
         """Apply a global rotation to the spin state.
