@@ -6,7 +6,10 @@
       "Bash(uv run:*)",
       "Bash(cmd /c \"uv run python -c \"\"import json; nb=json.load\\(open\\(r''C:\\\\GitHub\\\\Psyduck\\\\examples\\\\quadrupole modeling\\\\EFG_simulation_analysis.ipynb''\\)\\); print\\(len\\(nb[''cells'']\\), ''cells''\\); print\\(''last cell id:'', nb[''cells''][-1][''id'']\\)\"\"\")",
       "Bash(/c/Windows/System32/cmd.exe /c \"cd /d \"\"C:\\\\GitHub\\\\Psyduck\"\" && uv run python -c \"\"import json; nb=json.load\\(open\\(r''examples/quadrupole modeling/EFG_simulation_analysis.ipynb''\\)\\); print\\(len\\(nb[''cells'']\\)\\); print\\(nb[''cells''][-1][''id'']\\)\"\"\")",
-      "Bash(/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\GitHub\\\\Psyduck && uv run python -c \"\"import json; nb=json.load\\(open\\(''examples/quadrupole modeling/EFG_simulation_analysis.ipynb''\\)\\); print\\(len\\(nb[''cells'']\\)\\); print\\(nb[''cells''][-1][''id'']\\)\"\"\")"
+      "Bash(/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\GitHub\\\\Psyduck && uv run python -c \"\"import json; nb=json.load\\(open\\(''examples/quadrupole modeling/EFG_simulation_analysis.ipynb''\\)\\); print\\(len\\(nb[''cells'']\\)\\); print\\(nb[''cells''][-1][''id'']\\)\"\"\")",
+      "Read(//c/Users/z5380600/AppData/Local/Programs/**)",
+      "Bash(ls /c/Python*)",
+      "Read(//c/Users/z5380600/**)"
     ]
   }
 }
