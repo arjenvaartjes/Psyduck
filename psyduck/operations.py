@@ -38,29 +38,39 @@ def euler_rotation(phi, theta, psi):
 # Hamiltonian Functions
 # ============================================================================
 
-def zeeman_hamiltonian(I: float | list, B0: float, gamma: float | list = 1.0) -> qt.Qobj:
+def zeeman_hamiltonian(I: float | list, B0: float, gamma: float | list = 1.0,
+                       theta: float = 0.0, phi: float = 0.0) -> qt.Qobj:
     """Zeeman Hamiltonian for a spin in a magnetic field. If lists are given, make this return a tensor product sum
-    
-    H = -gamma * B0 * Iz
-    
+
+    H = -gamma * B0 * (sin(theta)*cos(phi)*Ix + sin(theta)*sin(phi)*Iy + cos(theta)*Iz)
+
+    theta=0 -> field along +z. theta=pi/2, phi=0 -> field along +x.
+
     :param I: Spin quantum number (s)
     :param B0: Magnetic field strength
     :param gamma: Gyromagnetic ratio (default 1.0)
+    :param theta: Polar angle from +z toward +x (default 0.0)
+    :param phi: Azimuthal angle in x-y plane (default 0.0)
     :return: Zeeman Hamiltonian
     """
+    st, ct = np.sin(theta), np.cos(theta)
+    sp, cp = np.sin(phi), np.cos(phi)
+    nx, ny, nz = st * cp, st * sp, ct
+
     if isinstance(I, list):
         # Tensor the spin systems
         H = qt.tensor(qt.qzero(2*i+1) for i in I)
         for inx in range(len(I)):
-            _, _, Iz = get_spin_operators(I[inx])
+            Ix, Iy, Iz = get_spin_operators(I[inx])
+            I_field = nx * Ix + ny * Iy + nz * Iz
             H += -gamma[inx] * B0 * qt.tensor(*(
                     [qt.qeye(2*I[i]+1) for i in range(0, inx)] +
-                    [Iz] +
+                    [I_field] +
                     [qt.qeye(2*I[i]+1) for i in range(inx+1, len(I))]
             ))
         return H
-    _, _, Iz = get_spin_operators(I)
-    return -gamma * B0 * Iz
+    Ix, Iy, Iz = get_spin_operators(I)
+    return -gamma * B0 * (nx * Ix + ny * Iy + nz * Iz)
 
 
 def quadrupole_hamiltonian(I, f_q, eta=0.0, theta=0.0, phi=0.0, psi=0.0):
