@@ -38,29 +38,39 @@ def euler_rotation(phi, theta, psi):
 # Hamiltonian Functions
 # ============================================================================
 
-def zeeman_hamiltonian(I: float | list, B0: float, gamma: float | list = 1.0) -> qt.Qobj:
+def zeeman_hamiltonian(I: float | list, B0: float, gamma: float | list = 1.0,
+                       theta: float = 0.0, phi: float = 0.0) -> qt.Qobj:
     """Zeeman Hamiltonian for a spin in a magnetic field. If lists are given, make this return a tensor product sum
-    
-    H = -gamma * B0 * Iz
-    
+
+    H = -gamma * B0 * (sin(theta)*cos(phi)*Ix + sin(theta)*sin(phi)*Iy + cos(theta)*Iz)
+
+    theta=0 -> field along +z. theta=pi/2, phi=0 -> field along +x.
+
     :param I: Spin quantum number (s)
     :param B0: Magnetic field strength
     :param gamma: Gyromagnetic ratio (default 1.0)
+    :param theta: Polar angle from +z toward +x (default 0.0)
+    :param phi: Azimuthal angle in x-y plane (default 0.0)
     :return: Zeeman Hamiltonian
     """
+    st, ct = np.sin(theta), np.cos(theta)
+    sp, cp = np.sin(phi), np.cos(phi)
+    nx, ny, nz = st * cp, st * sp, ct
+
     if isinstance(I, list):
         # Tensor the spin systems
         H = qt.tensor(qt.qzero(2*i+1) for i in I)
         for inx in range(len(I)):
-            _, _, Iz = get_spin_operators(I[inx])
+            Ix, Iy, Iz = get_spin_operators(I[inx])
+            I_field = nx * Ix + ny * Iy + nz * Iz
             H += -gamma[inx] * B0 * qt.tensor(*(
                     [qt.qeye(2*I[i]+1) for i in range(0, inx)] +
-                    [Iz] +
+                    [I_field] +
                     [qt.qeye(2*I[i]+1) for i in range(inx+1, len(I))]
             ))
         return H
-    _, _, Iz = get_spin_operators(I)
-    return -gamma * B0 * Iz
+    Ix, Iy, Iz = get_spin_operators(I)
+    return -gamma * B0 * (nx * Ix + ny * Iy + nz * Iz)
 
 
 def quadrupole_hamiltonian(I, f_q, eta=0.0, theta=0.0, phi=0.0, psi=0.0):
@@ -93,26 +103,33 @@ def quadrupole_hamiltonian(I, f_q, eta=0.0, theta=0.0, phi=0.0, psi=0.0):
 
 
 def quadrupole_hamiltonian_from_Vab(I: float, V_ab: ndarray, Q: float,
-                                    e: float = 1.6e-19, h: float = 6.626e-34) -> qt.Qobj:
+                                    e: float = 1.6e-19, h: float = 6.626e-34):
     """Quadrupole Hamiltonian for a nuclear spin.
 
     H = sum_{a,b} Q_ab[a,b] * I_a * I_b,  where Q_ab = e*Q*V_ab / (2I(2I-1)*h)
 
     :param I: Nuclear spin quantum number
-    :param V_ab: 3x3 EFG tensor in SI units (V/m²)
+    :param V_ab: EFG tensor(s) in SI units (V/m²). Shape (3, 3) or (N, 3, 3).
     :param Q: Nuclear quadrupole moment (C·m²)
     :param e: Elementary charge (default 1.6e-19 C)
     :param h: Planck constant (default 6.626e-34 J·s)
-    :return: Quadrupole Hamiltonian in Hz
+    :return: qt.Qobj for a single tensor; np.ndarray of shape (N, d, d) for a batch.
     """
+    V_ab = np.asarray(V_ab)
+    scale = e * Q / (2 * I * (2 * I - 1) * h)
+
     Ix, Iy, Iz = get_spin_operators(I)
-    I_vec = [Ix, Iy, Iz]
-    Q_ab = e * Q * V_ab / (2 * I * (2 * I - 1)) / h
-    H_quad = 0
-    for alpha in range(3):
-        for beta in range(3):
-            H_quad += Q_ab[alpha, beta] * I_vec[alpha] * I_vec[beta]
-    return qt.Qobj(H_quad)
+    I_vec = [Ix.full(), Iy.full(), Iz.full()]
+    basis = np.array([I_vec[a] @ I_vec[b] for a in range(3) for b in range(3)])  # (9, d, d)
+
+    if V_ab.ndim == 2:
+        Q_ab_flat = (scale * V_ab).ravel()          # (9,)
+        H = np.einsum('k,kij->ij', Q_ab_flat, basis)
+        return qt.Qobj(H)
+    else:
+        Q_ab_flat = (scale * V_ab).reshape(len(V_ab), 9)   # (N, 9)
+        return np.einsum('nk,kij->nij', Q_ab_flat, basis)  # (N, d, d)
+
 
 def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:
     """Hyperfine interaction Hamiltonian for electron and nuclear spins.
