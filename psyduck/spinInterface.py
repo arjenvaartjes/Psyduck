@@ -42,15 +42,6 @@ class SpinInterface(ABC):
         ...
 
     @abstractmethod
-    def fidelity(self, target_state: qt.Qobj) -> float:
-        """Calculate fidelity with respect to a target state.
-
-        :param target_state: Target quantum state (Qobj)
-        :return: Fidelity value between 0 and 1
-        """
-        ...
-
-    @abstractmethod
     def __repr__(self) -> str:
         ...
 
