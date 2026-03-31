@@ -31,7 +31,6 @@ class Spin(SpinInterface):
             self.state = qt.basis(self.dim, 0)  # Ground state |I, -I>
         else:
             self.state = state
-        self.dm = self.state * self.state.dag()  # Density matrix
 
     def expectation(self, operator: qt.Qobj) -> complex | float:
         """Calculate expectation value of an operator.
@@ -47,7 +46,6 @@ class Spin(SpinInterface):
         :param U: Unitary operator (Qobj)
         """
         self.state = U * self.state
-        self.dm = U @ self.dm @ U.dag()
 
     def state_labels(self):
         return [f'|{self.dim - 1 - 2 * i}/2>' for i in range(0, self.dim)]

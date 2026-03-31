@@ -52,6 +52,22 @@ class SpinInterface(ABC):
         :return: Set of state labels"""
         ...
 
+    # -----------------------------------------------------------------------
+    # state / dm property pair — dm is always kept in sync with state
+    # -----------------------------------------------------------------------
+
+    @property
+    def state(self) -> qt.Qobj:
+        return self._state
+
+    @state.setter
+    def state(self, value: qt.Qobj) -> None:
+        self._state = value
+        self._dm = value * value.dag() if value.isket else value
+
+    @property
+    def dm(self) -> qt.Qobj:
+        return self._dm
 
     # Common methods based on the abstract methods defined above
     # These will then work on any abstract Spin object!

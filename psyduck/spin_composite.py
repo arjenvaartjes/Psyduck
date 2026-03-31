@@ -34,7 +34,6 @@ class SpinComposite(SpinInterface):
             self.state = qt.tensor(*[s.state for s in spins])
         else:
             self.state = state
-        self.dm = self.state * self.state.dag()
 
     def expectation(self, operator: qt.Qobj, state=0) -> complex | float:
         """Calculate expectation value of an operator.
@@ -50,7 +49,6 @@ class SpinComposite(SpinInterface):
         :param U: Unitary operator (Qobj)
         """
         self.state = U * self.state
-        self.dm = U @ self.dm @ U.dag()
 
     def copy(self) -> 'SpinComposite':
         return SpinComposite(self.spins, self.state.copy())
