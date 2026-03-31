@@ -128,7 +128,7 @@ class Spin(SpinInterface):
     # ============================================================================
 
     def make_eigenstate(self, eigenvalue):
-        self.state = qt.basis(self.dim, int(-eigenvalue + 7 / 2))
+        self.state = qt.basis(self.dim, int(-eigenvalue + self.I))
 
     def make_zcat_state(self, phi: float) -> None:
         """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2).
