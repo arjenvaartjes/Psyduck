@@ -13,3 +13,5 @@ from .readout_plot import (
 )
 
 from .spin_series_plot import plot_populations
+
+from .cat_qubit_plot import plot_wigner_and_populations
