@@ -37,7 +37,7 @@ def wigner_plot(rho,dpi=300):
 
     ax.grid(False)
     
-def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8,6), ax=None, fig=None, vmin=None, vmax=None, prob_function='wigner', **kwargs):
+def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8,6), ax=None, fig=None, vmin=None, vmax=None, prob_function='w', **kwargs):
     """Plots spin wigner function as a surface plot on a sphere, with three projections on the side panels
     Inputs: 
     psi: Qutip Qubj (state vector)
@@ -58,10 +58,11 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
 
     theta = np.linspace(0,np.pi,n_theta)
     phi = np.linspace(0, 2*np.pi,n_phi)
-    if prob_function == 'wigner':
-        wigner, theta_mesh, phi_mesh = spin_wigner(psi, theta, phi)
-    else:
+
+    if prob_function == "h":
         wigner, theta_mesh, phi_mesh = spin_q_function(psi, theta, phi)
+    elif prob_function == 'w':
+        wigner, theta_mesh, phi_mesh = spin_wigner(psi, theta, phi)
 
     if vmin == None:
         vmin = wigner.min()
@@ -147,11 +148,14 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
     return fig, ax, wigner, theta_mesh, phi_mesh
 
 
-def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function as a coloured surface on a sphere."""
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(-np.pi, np.pi, n_phi)
-    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    if prob_function == "h":
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'w':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
     x = np.sin(theta_mesh) * np.cos(phi_mesh)
     y = np.sin(theta_mesh) * np.sin(phi_mesh)
@@ -172,11 +176,15 @@ def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, *
     return fig, ax
 
 
-def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a Hammer equal-area projection."""
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(-np.pi, np.pi, n_phi)
-    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    if prob_function == "h":
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'w':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+
 
     if ax is None:
         fig, ax = plt.subplots(subplot_kw={'projection': 'hammer'})
@@ -186,7 +194,7 @@ def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=Non
     return fig, ax
 
 
-def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None, **kwargs):
+def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a polar (azimuthal equidistant) projection.
 
     Azimuthal angle phi maps to the angular axis; polar angle theta maps to the
@@ -194,7 +202,10 @@ def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', fig=None, ax=None
     """
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(0, 2 * np.pi, n_phi)
-    W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    if prob_function == "h":
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'w':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
     if ax is None:
         fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
