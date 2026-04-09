@@ -99,6 +99,52 @@ def quadrupole_hamiltonian_from_Vab(I: float, V_ab: ndarray, Q: float,
         return H_batch  # (N, d, d)
 
 
+def get_quadrupole_stark_shift(V_ab: ndarray, E_vec: ndarray,
+                               I: float, B0: float, gamma: float, Q: float,
+                               thetas: ndarray, phis: ndarray,
+                               delta: float = 1.0):
+    """Quadrupole Stark shift: d(fq1)/dE and d(fq2)/dE over a (theta, phi) grid.
+
+    Computes how the first- and second-order quadrupole splittings change per
+    unit E-field (V/m) applied along the direction of E_vec, using a central
+    finite difference.  The result maps out electric-noise sensitivity as a
+    function of B-field orientation; zero crossings are sweet spots.
+
+    :param V_ab: Static EFG tensor in SI units (V/m²), shape (3, 3).
+    :param E_vec: E-field direction vector (e.g. [Ex, Ey, Ez] from NER fit).
+                  Normalised internally; only the direction matters.
+    :param I: Nuclear spin quantum number.
+    :param B0: Static magnetic field (T).
+    :param gamma: Nuclear gyromagnetic ratio (Hz/T).
+    :param Q: Nuclear quadrupole moment (C·m²).
+    :param thetas: 1-D array of polar angles (rad).
+    :param phis: 1-D array of azimuthal angles (rad).
+    :param delta: E-field step size for the finite difference (V/m, default 1.0).
+    :return: (dfq1, dfq2) — arrays of shape (len(thetas), len(phis)), units Hz/(V/m).
+    """
+    from psyduck.tensors import voigt_to_tensor, get_R_tensor
+
+    E_hat = np.asarray(E_vec, dtype=float)
+    E_hat = E_hat / np.linalg.norm(E_hat)
+
+    dV = voigt_to_tensor(get_R_tensor() @ (delta * E_hat))
+    H_qp = quadrupole_hamiltonian_from_Vab(I, np.asarray(V_ab) + dV, Q)
+    H_qm = quadrupole_hamiltonian_from_Vab(I, np.asarray(V_ab) - dV, Q)
+
+    dfq1 = np.zeros((len(thetas), len(phis)))
+    dfq2 = np.zeros((len(thetas), len(phis)))
+
+    for i, theta in enumerate(thetas):
+        for j, phi in enumerate(phis):
+            H_z = zeeman_hamiltonian(I, B0=B0, gamma=gamma, theta=theta, phi=phi)
+            ep = (H_z + H_qp).eigenstates()[0]
+            em = (H_z + H_qm).eigenstates()[0]
+            dfq1[i, j] = (np.mean(np.diff(np.diff(ep))) - np.mean(np.diff(np.diff(em)))) / (2 * delta)
+            dfq2[i, j] = (np.mean(np.diff(np.diff(np.diff(ep)))) - np.mean(np.diff(np.diff(np.diff(em))))) / (2 * delta)
+
+    return dfq1, dfq2
+
+
 def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:
     """Isotropic hyperfine interaction Hamiltonian.
 
