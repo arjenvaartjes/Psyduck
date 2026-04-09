@@ -5,7 +5,8 @@ import numpy as np
 from typing import Union
 from numpy import ndarray
 
-from psyduck.operations import get_spin_operators, get_transition_operators, euler_rotation
+from psyduck.operations import get_spin_operators, get_transition_operators
+from psyduck.tensors import Vab_to_Qab, get_Q_tensor
 
 
 # ============================================================================
@@ -62,13 +63,7 @@ def quadrupole_hamiltonian(I, f_q, eta=0.0, theta=0.0, phi=0.0, psi=0.0):
     :param psi: Twist around PAF z-axis (rad)
     :return: Quadrupole Hamiltonian (Hz)
     """
-    V_zz_normalised = 1.0
-    V_PAF = V_zz_normalised * np.diag([-(1 - eta) / 2, -(1 + eta) / 2, 1.0])
-
-    R = euler_rotation(phi, theta, psi)
-    V_lab = R @ V_PAF @ R.T
-
-    Q_ab = (f_q / 3.0) * V_lab
+    Q_ab = get_Q_tensor(f_q, eta, theta, phi, psi)
     I_vec = [*get_spin_operators(I)]
     H = sum(Q_ab[a, b] * I_vec[a] * I_vec[b] for a in range(3) for b in range(3))
     return qt.Qobj(H)
@@ -90,19 +85,18 @@ def quadrupole_hamiltonian_from_Vab(I: float, V_ab: ndarray, Q: float,
     :return: qt.Qobj for a single tensor; np.ndarray of shape (N, d, d) for a batch.
     """
     V_ab = np.asarray(V_ab)
-    scale = e * Q / (2 * I * (2 * I - 1) * h)
+    Q_ab = Vab_to_Qab(V_ab, I, Q, e=e, h=h)
 
     Ix, Iy, Iz = get_spin_operators(I)
     I_vec = [Ix.full(), Iy.full(), Iz.full()]
     basis = np.array([I_vec[a] @ I_vec[b] for a in range(3) for b in range(3)])  # (9, d, d)
 
     if V_ab.ndim == 2:
-        Q_ab_flat = (scale * V_ab).ravel()
-        H = np.einsum('k,kij->ij', Q_ab_flat, basis)
+        H = np.einsum('k,kij->ij', Q_ab.ravel(), basis)
         return qt.Qobj(H)
     else:
-        Q_ab_flat = (scale * V_ab).reshape(len(V_ab), 9)
-        return np.einsum('nk,kij->nij', Q_ab_flat, basis)  # (N, d, d)
+        H_batch = np.einsum('nk,kij->nij', Q_ab.reshape(len(Q_ab), 9), basis)
+        return H_batch  # (N, d, d)
 
 
 def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:

@@ -1,7 +1,33 @@
 import numpy as np
 
+from psyduck.operations import euler_rotation
+
 
 # Voigt notation order: [xx, yy, zz, yz, xz, xy] (indices 0–5)
+
+
+def get_Q_tensor(f_q: float, eta: float = 0.0,
+                 theta: float = 0.0, phi: float = 0.0, psi: float = 0.0) -> np.ndarray:
+    """Quadrupole coupling tensor Q_ab in the lab frame (Hz).
+
+    Constructs the traceless EFG tensor in its principal axis frame (PAF)
+    from the quadrupole splitting frequency and asymmetry parameter, then
+    rotates it into the lab frame via ZYZ Euler angles.
+
+    In the PAF: V = diag([-(1-eta)/2, -(1+eta)/2, 1]) * V_zz (normalised).
+    Q_ab = (f_q / 3) * R @ V_PAF @ R^T
+
+    :param f_q: Quadrupole splitting frequency (Hz).
+    :param eta: Asymmetry parameter, 0 (axial) to 1 (fully asymmetric).
+    :param theta: Polar tilt of PAF z-axis from B0 (rad, ZYZ Euler angle).
+    :param phi: Azimuthal angle of PAF z-axis (rad, ZYZ Euler angle).
+    :param psi: Twist around PAF z-axis (rad, ZYZ Euler angle).
+    :return: 3×3 quadrupole coupling tensor in Hz.
+    """
+    V_PAF = np.diag([-(1 - eta) / 2, -(1 + eta) / 2, 1.0])
+    R = euler_rotation(phi, theta, psi)
+    V_lab = R @ V_PAF @ R.T
+    return (f_q / 3.0) * V_lab
 
 
 def get_S_tensor(S11: float = 2e22, S44: float = 5.9e22) -> np.ndarray:
@@ -76,6 +102,60 @@ def voigt_to_tensor(vec: np.ndarray) -> np.ndarray:
     T[:, 0, 1] = T[:, 1, 0] = vec[:, 5]  # xy
 
     return T if batched else T[0]
+
+
+def Vab_to_Qab(V_ab: np.ndarray, I: float, Q: float,
+               e: float = 1.6e-19, h: float = 6.626e-34) -> np.ndarray:
+    """Convert EFG tensor V_ab to quadrupole coupling tensor Q_ab (Hz).
+
+    Q_ab = e * Q * V_ab / (2I(2I-1) * h)
+
+    Parameters
+    ----------
+    V_ab : array_like, shape (3, 3) or (N, 3, 3)
+        Electric field gradient tensor in SI units (V/m²).
+    I : float
+        Nuclear spin quantum number.
+    Q : float
+        Nuclear quadrupole moment (C·m²).
+    e : float
+        Elementary charge (default 1.6e-19 C).
+    h : float
+        Planck constant (default 6.626e-34 J·s).
+
+    Returns
+    -------
+    np.ndarray, shape (3, 3) or (N, 3, 3), units Hz
+    """
+    scale = e * Q / (2 * I * (2 * I - 1) * h)
+    return np.asarray(V_ab) * scale
+
+
+def Qab_to_Vab(Q_ab: np.ndarray, I: float, Q: float,
+               e: float = 1.6e-19, h: float = 6.626e-34) -> np.ndarray:
+    """Convert quadrupole coupling tensor Q_ab (Hz) to EFG tensor V_ab (V/m²).
+
+    V_ab = Q_ab * 2I(2I-1) * h / (e * Q)
+
+    Parameters
+    ----------
+    Q_ab : array_like, shape (3, 3) or (N, 3, 3)
+        Quadrupole coupling tensor in Hz.
+    I : float
+        Nuclear spin quantum number.
+    Q : float
+        Nuclear quadrupole moment (C·m²).
+    e : float
+        Elementary charge (default 1.6e-19 C).
+    h : float
+        Planck constant (default 6.626e-34 J·s).
+
+    Returns
+    -------
+    np.ndarray, shape (3, 3) or (N, 3, 3), units V/m²
+    """
+    scale = e * Q / (2 * I * (2 * I - 1) * h)
+    return np.asarray(Q_ab) / scale
 
 
 def tensor_to_voigt(tensor: np.ndarray) -> np.ndarray:
