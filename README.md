@@ -1,100 +1,94 @@
 # Psyduck
-Simulation framework for high-spin qudit systems, with a focus on the antimony (Sb) nucleus (I=7/2) in semiconductor devices.
+Simulation framework for high-spin qudit systems, with a focus on the antimony (Sb) nucleus (I=7/2) in semiconductor devices. Built on [QuTiP](https://qutip.org/).
 
 <img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/5076a302-52f7-4500-9ddb-ab6e8c10c74c" />
 
-## Repository structure
-
-### `psyduck/` — Core simulation library
-
-| File | Contents |
-|------|----------|
-| `spin.py` | `Spin` class — wraps a QuTiP state with helper methods for expectation values, state preparation, rotations, and evolution |
-| `spin_series.py` | `SpinSeries` class — an ordered sequence of spin states over a coordinate axis (time, angle, field, …); returned by `Spin.evolve()` |
-| `operations.py` | Hamiltonians (Zeeman, quadrupole, RF), rotation/pulse operators, `parity_operator`, `shift_operator` |
-| `noise.py` | Lindblad collapse operators for magnetic (Iz) and electric/quadrupole (Iz²) dephasing noise |
-| `evolve.py` | Higher-level helpers: `free_decay()` for multi-state open-system evolution with T₂\* fitting |
-| `fit_toolbox.py` | Curve-fitting classes built on lmfit/xarray: `Fit`, `ExponentialFit`, `SineFit`, `RabiFrequencyFit`, `T1Fit`, and more |
-| `plotting/` | Wigner function visualisations (`wigner_plot_3d`, `wigner_plot_hammer`, `wigner_plot_polar`) and readout plots |
-
-### `noise model/` — Dephasing and coherence modelling
-Notebooks studying how magnetic and electric noise limit coherence times.
-
-| File | Contents |
-|------|----------|
-| `sb_dephasing_model_fit.ipynb` | Fits experimental Sb Ramsey data to a Lindblad master equation with stretched-exponential decay; extracts T₂\* and noise exponents for magnetic and electric channels |
-| `dephasing_vs_dimension.ipynb` | Compares Z cat state dephasing rates as a function of spin dimension |
-| `dephasing_vs_cat_angle.ipynb` | Explores how the cat-state superposition angle affects the free-decay dephasing time |
-| `dynamical_decoupling_pulse_construction.ipynb` | Constructs dynamical decoupling sequences (XY-8, CPMG, etc.) decomposed into physical pulses on the ionised Sb nucleus |
-
-### `beating/` — Ramsey beating simulations
-| File | Contents |
-|------|----------|
-| `ramsey_beating.ipynb` | Simulates a spin-1/2 in a periodically modulated magnetic field; studies beating patterns in Ramsey experiments from a bichromatic drive |
-
-### `dynamical decoupling/` — Spin-locking and echo sequences
-| File | Contents |
-|------|----------|
-| `rotary_echo.ipynb` | Simulates spin-locking and rotary echo sequences for I=7/2; investigates decoupling from transverse noise |
-
-### `global rotations/` — Global rotation and Rabi simulations
-| File | Contents |
-|------|----------|
-| `global_rabi.ipynb` | Simulates global (non-selective) rotations of all Zeeman levels simultaneously; plots population dynamics across the full I=7/2 manifold |
-
-### `ionization shock/` — Ionisation event modelling
-Notebooks modelling what happens to the nuclear spin state when the electron is captured or emitted (ionisation shock).
-
-| File | Contents |
-|------|----------|
-| `ionization_shock.py` | Helper module defining the ionisation-shock Hamiltonian and state-projection utilities |
-| `ionization_shock_direct_projection.ipynb` | Builds the Hamiltonian model and directly projects the nuclear state across the ionisation event |
-| `errorspace_readout_simulation.ipynb` | Simulates random readout time traces in the presence of ionisation errors |
-| `lindblad_modeling_Sb.ipynb` | Lindblad master-equation model of the Sb nucleus after an ionisation shock |
-
-### `quadrupole modeling/` — Quadrupole Hamiltonian fitting
-| File | Contents |
-|------|----------|
-| `first and second order quadrupole.ipynb` | Fits first- and second-order quadrupole parameters to spectroscopic data; stores fitted Hamiltonians as `.npy` files |
-| `H_quad.npy`, `H_quad_fit.npy`, `H_quad_laura.npy` | Saved quadrupole Hamiltonian matrices |
-| `analyzed_data_24.nc` | Experimental spectroscopy dataset (NetCDF) |
-
-### `plotting/` — Visualisation utilities
-| File | Contents |
-|------|----------|
-| `wigner_plot.py` | `wigner_plot()` and `projection_plot_spin_wigner()` — Wigner function visualisations for arbitrary spin states |
-| `readout_plot.py` | Readout histogram and time-trace plotting helpers |
-
-### Root-level files
-| File | Contents |
-|------|----------|
-| `example.py` | Minimal usage example showing how to create a `Spin` object and compute expectation values |
-
 ## Quick start
+
+```bash
+uv sync          # install dependencies
+```
 
 ```python
 from psyduck import Spin
-from psyduck.operations import zeeman_hamiltonian
+from psyduck import hamiltonians
 import numpy as np
 
-nucleus = Spin(I=7/2)                              # initialise Sb nucleus
-nucleus.global_rotate(angle=np.pi/2, axis='x')    # apply π/2 pulse about x
-print(nucleus.Iz())                                # expectation value of Iz
+nucleus = Spin(I=7/2)                            # Sb nucleus in |m=+7/2⟩
+nucleus.global_rotate(angle=np.pi/2, axis='x')  # π/2 pulse about x
 
-# Time evolution returns a SpinSeries
-H = zeeman_hamiltonian(7/2, B0=1.0)
-times = np.linspace(0, 1, 500)
-traj = nucleus.evolve(H, times)
+H = hamiltonians.zeeman_hamiltonian(7/2, B0=1.0, gamma=5.55e6)
+times = np.linspace(0, 1e-3, 500)
+traj = nucleus.evolve(H, times)                  # returns a SpinSeries
 
-pop = traj.populations()       # shape (N, dim) — population of each Zeeman level
-iz  = traj.Iz()                # shape (N,)     — <Iz> at each time step
-par = traj.parity()            # shape (N,)     — parity expectation value
-spin_at_t = traj[250]          # Spin object at index 250
+traj.populations()   # (N, 8) — Zeeman level populations
+traj.Iz()            # (N,)   — ⟨Iz⟩ at each time step
+traj.parity()        # (N,)   — parity expectation value
+traj[250]            # Spin object at index 250
 ```
 
+## Library structure (`psyduck/`)
+
+### Core classes
+
+| Class | Module | Description |
+|-------|--------|-------------|
+| `Spin` | `spin.py` | Primary state container. Wraps a QuTiP density matrix or ket. State prep, evolution, rotations, diagnostics, and Wigner plots. |
+| `SpinSeries` | `spin_series.py` | Ordered sequence of `Spin` states over an axis (time, angle, field, …). Returned by `Spin.evolve()`. |
+| `SpinComposite` | `spin_composite.py` | Tensor-product composite of multiple sub-systems (e.g. nucleus + electron). |
+| `CatQubit` | `cat_qubit.py` | Cat-qubit encoded in the extreme eigenstates of a high-spin nucleus. |
+
+### Physics modules
+
+| Module | Key contents |
+|--------|-------------|
+| `hamiltonians.py` | `zeeman_hamiltonian`, `quadrupole_hamiltonian`, `quadrupole_hamiltonian_from_Vab`, `hyperfine_hamiltonian`, `ner1_hamiltonian`, `ner2_hamiltonian`, `drive_hamiltonian` |
+| `operations.py` | `get_spin_operators`, `get_transition_operators`, `global_rotation`, `subspace_rotation`, `snap`, `shift_operator`, `parity_operator`, `permutation_operator`, `euler_rotation` |
+| `tensors.py` | `get_Q_tensor`, `Vab_to_Qab`, `Qab_to_Vab`, `get_R_tensor`, `get_S_tensor`, `voigt_to_tensor`, `tensor_to_voigt` |
+| `noise.py` | `get_collapse_operators` — magnetic (Iz) and electric (Iz²) Lindblad operators with stretched-exponential profiles |
+| `evolve.py` | `free_decay` — open-system evolution over multiple initial states with T₂\* fitting |
+| `fit_toolbox.py` | `Fit` base class + subclasses: `ExponentialFit`, `SineFit`, `T1Fit`, `RabiFrequencyFit`, `DoubleExponentialFit`, `BayesianUpdateFit`, … |
+
+### Plotting (`psyduck/plotting/`)
+
+| Function | Description |
+|----------|-------------|
+| `wigner_plot` / `wigner_plot_3d` / `wigner_plot_hammer` / `wigner_plot_polar` | Wigner function visualisations in various projections |
+| `make_wigner_gif` | Animated Wigner function over a SpinSeries |
+| `plot_quadrupole_tensor(V_ab, I, B0, gamma, Q)` | 3D colour plots of fq1 and fq2 as a function of field orientation |
+| `plot_transition_matrix` | Eigenstate decomposition and transition matrices |
+| `plot_populations` | Zeeman level populations across a SpinSeries |
+| `plot_wigner_and_populations` | Combined Wigner + population plot (cat qubit states) |
+
+### Data flow
+
+```
+Spin  ──►  hamiltonians / operations  ──►  Spin.evolve()  ──►  SpinSeries  ──►  plotting
+            (build H, collapse ops)         (sesolve /              │
+                                             mesolve)          fit_toolbox
+```
+
+Pass `c_ops` from `noise.get_collapse_operators()` to `Spin.evolve()` to switch from unitary (`sesolve`) to open-system (`mesolve`) evolution.
+
+## Examples / tutorials
+
+All notebooks live under `examples/`. Key starting points:
+
+| Notebook | Topic |
+|----------|-------|
+| `global rotations/global_rabi.ipynb` | Global (non-selective) Rabi oscillations across the full I=7/2 manifold |
+| `pulse sequences/PulseSequences.ipynb` | Building and simulating selective pulse sequences |
+| `noise model/sb_dephasing_model_fit.ipynb` | Fitting T₂\* and noise exponents from Ramsey data |
+| `dynamical decoupling/continuous_DD.ipynb` | Dynamical decoupling sequences (XY-8, CPMG) |
+| `quadrupole modeling/extracting_quadrupole_tensor_few_angles.ipynb` | Fitting the EFG tensor from NMR/NER spectroscopy |
+| `cat qubit/CatQubitStatesAndGates.ipynb` | Cat-qubit states and logical gates |
+| `hamiltonian/TimeDependentHamiltonians.ipynb` | Time-dependent drives and the GRF Hamiltonian |
+| `Hyperfine/NuclearRamseyElectronMeasurement.ipynb` | Electron-mediated nuclear spin readout |
+
 ## Dependencies
-- [QuTiP](https://qutip.org/) — quantum toolbox in Python
+
+- [QuTiP](https://qutip.org/) ≥ 5.2
 - NumPy, SciPy, Matplotlib
 - [lmfit](https://lmfit.github.io/lmfit-py/) — curve fitting
-- [xarray](https://xarray.pydata.org/) — labelled data arrays
-- [QCoDeS](https://microsoft.github.io/Qcodes/) — experimental data loading (some notebooks)
+- [xarray](https://xarray.pydata.org/) — labelled arrays
+- [pandas](https://pandas.pydata.org/)
