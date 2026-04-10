@@ -3,21 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
-from psyduck.hamiltonians import quadrupole_hamiltonian_from_Vab, zeeman_hamiltonian, get_quadrupole_stark_shift
+from psyduck.hamiltonians import get_quadrupole_stark_shift, get_quadrupole_splittings
 
 
 def _fq_grid(V_ab, I, B0, gamma, Q, n_theta, n_phi):
     thetas = np.linspace(0, np.pi, n_theta)
     phis = np.linspace(0, 2 * np.pi, n_phi)
-    fq1 = np.zeros((n_theta, n_phi))
-    fq2 = np.zeros((n_theta, n_phi))
-    H_q = quadrupole_hamiltonian_from_Vab(I, V_ab, Q)
-    for i, theta in enumerate(thetas):
-        for j, phi in enumerate(phis):
-            H = zeeman_hamiltonian(I, B0=B0, gamma=gamma, theta=theta, phi=phi) + H_q
-            evals = H.eigenstates()[0]
-            fq1[i, j] = np.mean(np.diff(np.diff(evals)))
-            fq2[i, j] = np.mean(np.diff(np.diff(np.diff(evals))))
+    fq1, fq2 = get_quadrupole_splittings(V_ab, I, B0, gamma, Q, thetas, phis)
     return thetas, phis, fq1, fq2
 
 

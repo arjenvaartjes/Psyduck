@@ -1,4 +1,7 @@
 from .wigner_plot import (
+    spherical_plot_3d,
+    spherical_plot_hammer,
+    spherical_plot_polar,
     wigner_plot_hammer,
     wigner_plot_polar,
     wigner_plot_3d,

@@ -145,6 +145,42 @@ def get_quadrupole_stark_shift(V_ab: ndarray, E_vec: ndarray,
     return dfq1, dfq2
 
 
+def get_quadrupole_splittings(V_ab: ndarray, I: float, B0: float, gamma: float, Q: float,
+                        thetas: ndarray, phis: ndarray):
+    """Compute first- and second-order quadrupole splittings over a (theta, phi) grid.
+
+    :param V_ab: EFG tensor in SI units (V/m²), shape (3, 3).
+    :param I: Nuclear spin quantum number.
+    :param B0: Static magnetic field (T).
+    :param gamma: Nuclear gyromagnetic ratio (Hz/T).
+    :param Q: Nuclear quadrupole moment (C·m²).
+    :param thetas: 1-D array of polar angles (rad).
+    :param phis: 1-D array of azimuthal angles (rad).
+    :return: (fq1, fq2) — arrays of shape (len(thetas), len(phis)), units Hz.
+    """
+    H_q = quadrupole_hamiltonian_from_Vab(I, np.asarray(V_ab), Q)
+    fq1 = np.zeros((len(thetas), len(phis)))
+    fq2 = np.zeros((len(thetas), len(phis)))
+    for i, theta in enumerate(thetas):
+        for j, phi in enumerate(phis):
+            evals = (zeeman_hamiltonian(I, B0=B0, gamma=gamma, theta=theta, phi=phi) + H_q).eigenstates()[0]
+            fq1[i, j] = np.mean(np.diff(np.diff(evals)))
+            fq2[i, j] = np.mean(np.diff(np.diff(np.diff(evals))))
+    return fq1, fq2
+
+
+def get_fq1(V_ab: ndarray, I: float, B0: float, gamma: float, Q: float,
+            thetas: ndarray, phis: ndarray) -> ndarray:
+    """First-order quadrupole splitting grid. See get_quadrupole_splittings."""
+    return get_quadrupole_splittings(V_ab, I, B0, gamma, Q, thetas, phis)[0]
+
+
+def get_fq2(V_ab: ndarray, I: float, B0: float, gamma: float, Q: float,
+            thetas: ndarray, phis: ndarray) -> ndarray:
+    """Second-order quadrupole splitting grid. See get_quadrupole_splittings."""
+    return get_quadrupole_splittings(V_ab, I, B0, gamma, Q, thetas, phis)[1]
+
+
 def hyperfine_hamiltonian(S: float, I: float, A: float) -> qt.Qobj:
     """Isotropic hyperfine interaction Hamiltonian.
 
