@@ -6,11 +6,14 @@ from qutip.wigner import spin_q_function
 from qutip import Qobj, spin_coherent
 import cmath, math
 
-def wigner_plot(rho,dpi=300):
+def wigner_plot(rho, dpi=300, prob_function='wigner'):
     nTheta, nPhi = (101, 201)
     theta = np.linspace(0, np.pi, num=nTheta, endpoint=True)
     phi = np.linspace(-np.pi, np.pi, num=nPhi, endpoint=True)
-    husimi0, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    if prob_function == 'husimi':
+        husimi0, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    else:
+        husimi0, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
     r = 1
     x = r*np.cos(phi_mesh)*np.cos(theta_mesh-np.pi/2)
@@ -37,7 +40,7 @@ def wigner_plot(rho,dpi=300):
 
     ax.grid(False)
     
-def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8,6), ax=None, fig=None, vmin=None, vmax=None, prob_function='w', **kwargs):
+def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8,6), ax=None, fig=None, vmin=None, vmax=None, prob_function='wigner', **kwargs):
     """Plots spin wigner function as a surface plot on a sphere, with three projections on the side panels
     Inputs: 
     psi: Qutip Qubj (state vector)
@@ -59,9 +62,9 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
     theta = np.linspace(0,np.pi,n_theta)
     phi = np.linspace(0, 2*np.pi,n_phi)
 
-    if prob_function == "h":
+    if prob_function == 'husimi':
         wigner, theta_mesh, phi_mesh = spin_q_function(psi, theta, phi)
-    elif prob_function == 'w':
+    elif prob_function == 'wigner':
         wigner, theta_mesh, phi_mesh = spin_wigner(psi, theta, phi)
 
     if vmin == None:
@@ -148,13 +151,13 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
     return fig, ax, wigner, theta_mesh, phi_mesh
 
 
-def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
+def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='wigner', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function as a coloured surface on a sphere."""
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(-np.pi, np.pi, n_phi)
-    if prob_function == "h":
+    if prob_function == 'husimi':
         W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
-    elif prob_function == 'w':
+    elif prob_function == 'wigner':
         W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
     x = np.sin(theta_mesh) * np.cos(phi_mesh)
@@ -176,13 +179,13 @@ def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fi
     return fig, ax
 
 
-def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
+def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='wigner', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a Hammer equal-area projection."""
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(-np.pi, np.pi, n_phi)
-    if prob_function == "h":
+    if prob_function == 'husimi':
         W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
-    elif prob_function == 'w':
+    elif prob_function == 'wigner':
         W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
 
@@ -194,7 +197,7 @@ def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w'
     return fig, ax
 
 
-def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w', fig=None, ax=None, **kwargs):
+def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='wigner', fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a polar (azimuthal equidistant) projection.
 
     Azimuthal angle phi maps to the angular axis; polar angle theta maps to the
@@ -202,9 +205,9 @@ def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr',prob_function='w',
     """
     theta = np.linspace(0, np.pi, n_theta)
     phi = np.linspace(0, 2 * np.pi, n_phi)
-    if prob_function == "h":
+    if prob_function == 'husimi':
         W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
-    elif prob_function == 'w':
+    elif prob_function == 'wigner':
         W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
 
     if ax is None:
