@@ -32,7 +32,7 @@ def spherical_plot_3d(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=Non
     if theta_mesh is None or phi_mesh is None:
         n_theta, n_phi = data.shape
         _theta, _phi = np.meshgrid(np.linspace(0, np.pi, n_theta),
-                                   np.linspace(-np.pi, np.pi, n_phi),
+                                   np.linspace(0, 2*np.pi, n_phi),
                                    indexing='ij')
         if theta_mesh is None:
             theta_mesh = _theta
@@ -56,9 +56,9 @@ def spherical_plot_3d(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=Non
         if fig is None:
             fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(x, y, z, facecolors=cmap_obj(norm(data)),
+    pcm = ax.plot_surface(x, y, z, facecolors=cmap_obj(norm(data)),
                     rstride=1, cstride=1, shade=False, **kwargs)
-    return fig, ax
+    return fig, ax, pcm
 
 
 def spherical_plot_hammer(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=None, vmax=None,
@@ -94,11 +94,124 @@ def spherical_plot_hammer(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin
             fig, ax = plt.subplots(subplot_kw={'projection': 'hammer'})
         else:
             ax = fig.add_subplot(111, projection='hammer')
-    ax.pcolormesh(phi_mesh, theta_mesh - np.pi / 2, data,
+    pcm = ax.pcolormesh(phi_mesh, theta_mesh - np.pi / 2, data,
                   cmap=cmap, vmin=vmin, vmax=vmax, **kwargs)
-    ax.set_xticklabels([])
+
+    # Polar-angle (theta) tick labels along the central meridian
+    ax.set_yticks([np.pi / 2, np.pi / 4, 0, -np.pi / 4, -np.pi / 2])
+    ax.set_yticklabels(['0°', '45°', '90°', '135°', '180°'], fontsize=7)
+
+    # Azimuthal-angle (phi) tick labels along the equator
+    ax.set_xticks([-np.pi / 2, 0, np.pi / 2])
+    ax.set_xticklabels(['-y', '+x', '+y'], fontsize=7)
+
     ax.grid(False)
-    return fig, ax
+    return fig, ax, pcm
+
+
+def spherical_plot_3d_with_projections(data, theta_mesh=None, phi_mesh=None, cmap='RdBu',
+                                       vmin=None, vmax=None, r=1,
+                                       fig=None, ax=None, figsize=(8, 6), **kwargs):
+    """Plot scalar data on a sphere with three flat side projections.
+
+    The main sphere is drawn with :func:`spherical_plot_3d`.  Three additional
+    flat panels show projections onto the x=−1.5, y=+1.5, and z=−1.5 planes.
+
+    :param data: 2-D array of values, shape (n_phi, n_theta) — phi-major,
+                 as returned by QuTiP's spin_wigner / spin_q_function.
+    :param theta_mesh: Polar-angle mesh in [0, π], same shape as data.
+    :param phi_mesh: Azimuthal-angle mesh in [0, 2π], same shape as data.
+    :param cmap: Matplotlib colormap name or object.
+    :param vmin: Colour-scale minimum (default: data.min()).
+    :param vmax: Colour-scale maximum (default: data.max()).
+    :param r: Sphere radius (default 1).
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing 3-D Axes; created if None.
+    :param figsize: Figure size when creating a new figure.
+    :param kwargs: Forwarded to all ax.plot_surface calls.
+    :return: (fig, ax)
+    """
+    try:
+        cmap_obj = plt.get_cmap(cmap)
+    except Exception:
+        cmap_obj = cmap
+
+    n_theta, n_phi = data.shape
+
+    if theta_mesh is None or phi_mesh is None:
+        _theta, _phi = np.meshgrid(np.linspace(0, np.pi, n_theta),
+                                   np.linspace(0, 2*np.pi, n_phi),
+                                   indexing='ij')
+        if theta_mesh is None:
+            theta_mesh = _theta
+        if phi_mesh is None:
+            phi_mesh = _phi
+
+    if vmin is None:
+        vmin = data.min()
+    if vmax is None:
+        vmax = data.max()
+
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+
+    if ax is None:
+        fig = plt.figure(dpi=300, figsize=figsize, edgecolor='None')
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    light_source = mpl.colors.LightSource(azdeg=-45, altdeg=10, hsv_min_val=1, hsv_max_val=1,
+                                           hsv_min_sat=1, hsv_max_sat=1)
+    _, _, pcm = spherical_plot_3d(data, theta_mesh, phi_mesh, cmap=cmap_obj, vmin=vmin, vmax=vmax,
+                      fig=fig, ax=ax, lightsource=light_source, **kwargs)
+
+    # -- y projection: second half of phi values (y ≥ 0 hemisphere, 0 ≤ φ ≤ π) --
+    theta_mesh_y = theta_mesh[:, :n_phi // 2]
+    phi_mesh_y = phi_mesh[:, :n_phi // 2]
+    data_y = data[:, :n_phi // 2]
+    x = r * np.cos(phi_mesh_y) * np.cos(theta_mesh_y - np.pi / 2)
+    y = r * np.sin(phi_mesh_y) * np.cos(theta_mesh_y - np.pi / 2)
+    z = r * np.sin(theta_mesh_y - np.pi / 2)
+    ax.plot_surface(x, np.zeros_like(x) + 1.5, z, facecolors=cmap_obj(norm(data_y)),
+                    shade=False, rstride=1, cstride=1, **kwargs)
+
+    # -- z projection: first half of theta values (upper hemisphere) --
+    theta_mesh_z = theta_mesh[:n_theta // 2, :]
+    phi_mesh_z = phi_mesh[:n_theta // 2, :]
+    data_z = data[:n_theta // 2, :]
+    x = r * np.cos(phi_mesh_z) * np.cos(theta_mesh_z - np.pi / 2)
+    y = r * np.sin(phi_mesh_z) * np.cos(theta_mesh_z - np.pi / 2)
+    z = r * np.sin(theta_mesh_z - np.pi / 2)
+    ax.plot_surface(x, y, np.zeros_like(x) - 1.5, facecolors=cmap_obj(norm(data_z)),
+                    shade=False, rstride=1, cstride=1, **kwargs)
+
+    # -- x projection: middle half of phi (−π/2 ≤ φ ≤ π/2, x ≥ 0 hemisphere) --
+    theta_mesh_x = theta_mesh[:, n_phi // 4:3 * n_phi // 4]
+    phi_mesh_x = phi_mesh[:, n_phi // 4:3 * n_phi // 4]
+    data_x = data[:, n_phi // 4:3 * n_phi // 4]
+    x = r * np.cos(phi_mesh_x) * np.cos(theta_mesh_x - np.pi / 2)
+    y = r * np.sin(phi_mesh_x) * np.cos(theta_mesh_x - np.pi / 2)
+    z = r * np.sin(theta_mesh_x - np.pi / 2)
+    ax.plot_surface(np.zeros_like(y) - 1.5, y, z, facecolors=cmap_obj(norm(data_x)),
+                    shade=False, rstride=1, cstride=1, **kwargs)
+
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(-1.5, 1.5)
+
+    ax.plot([-1.5, -1.5], [-1.6, 1.6], [-1.5, -1.5], color='grey', lw=0.4)
+    ax.plot([-1.6, 1.6], [1.5, 1.5], [-1.5, -1.5], color='grey', lw=0.4)
+    ax.plot([-1.5, -1.5], [1.5, 1.5], [-1.6, 1.6], color='grey', lw=0.4)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+        axis.line.set_linewidth(0)
+    ax.xaxis.pane.set_facecolor((0.85, 0.85, 0.85, 1))
+    ax.yaxis.pane.set_facecolor((0.8, 0.8, 0.8, 1))
+    ax.zaxis.pane.set_facecolor((0.825, 0.825, 0.825, 1))
+    ax.view_init(22, -60)
+
+    return fig, ax, pcm
 
 
 def spherical_plot_polar(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=None, vmax=None,
@@ -170,22 +283,24 @@ def wigner_plot(rho, dpi=300, prob_function='wigner'):
 def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8, 6),
                                 ax=None, fig=None, vmin=None, vmax=None, prob_function='wigner',
                                 **kwargs):
-    """Plots spin wigner function as a surface plot on a sphere, with three projections on the side panels
-    Inputs:
-    psi: Qutip Qubj (state vector)
-    n_theta: number of grid points for polar angles theta
-    n_phi: number of grid points for azimuthal angles phi
-    r: radius of the sphere
-    cmap: matplotlib colormap
+    """Plot spin Wigner/Husimi function on a sphere with three side projections.
 
-    Outputs:
-    fig: matplotlib figure
-    ax: matplotlib axis
+    :param psi: QuTiP Qobj state vector or density matrix.
+    :param n_theta: Number of polar-angle grid points.
+    :param n_phi: Number of azimuthal-angle grid points.
+    :param r: Sphere radius (default 1).
+    :param cmap: Matplotlib colormap.
+    :param figsize: Figure size when creating a new figure.
+    :param ax: Existing 3-D Axes; created if None.
+    :param fig: Existing Figure; created if None.
+    :param vmin/vmax: Colour-scale limits (default: data min/max).
+    :param prob_function: 'wigner' or 'husimi'.
+    :param kwargs: Forwarded to plot_surface calls.
+    :return: (fig, ax, data, theta_mesh, phi_mesh)
     """
-
     try:
         cmap = plt.get_cmap(cmap)
-    except:
+    except Exception:
         cmap = cmap
 
     theta = np.linspace(0, np.pi, n_theta)
@@ -196,74 +311,10 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
     elif prob_function == 'wigner':
         wigner, theta_mesh, phi_mesh = spin_wigner(psi, theta, phi)
 
-    if vmin is None:
-        vmin = wigner.min()
-    if vmax is None:
-        vmax = wigner.max()
-
-    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-
-    if ax is None:
-        fig = plt.figure(dpi=300, figsize=figsize, edgecolor='None')
-        ax = fig.add_subplot(1, 1, 1, projection='3d')
-    light_source = mpl.colors.LightSource(azdeg=-45, altdeg=10, hsv_min_val=1, hsv_max_val=1,
-                                           hsv_min_sat=1, hsv_max_sat=1)
-    spherical_plot_3d(wigner, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
-                      fig=fig, ax=ax, lightsource=light_source, **kwargs)
-
-    # -- for y projection, take first half of phi values (axis 0) --
-    theta_mesh_y = theta_mesh[:n_phi // 2, :]
-    phi_mesh_y = phi_mesh[:n_phi // 2, :]
-    wigner_y = wigner[:n_phi // 2, :]
-
-    x = r * np.cos(phi_mesh_y) * np.cos(theta_mesh_y - np.pi / 2)
-    y = r * np.sin(phi_mesh_y) * np.cos(theta_mesh_y - np.pi / 2)
-    z = r * np.sin(theta_mesh_y - np.pi / 2)
-    ax.plot_surface(x, np.zeros_like(x) + 1.5, z, facecolors=cmap(norm(wigner_y)),
-                    shade=False, rstride=1, cstride=1, **kwargs)
-
-    # -- for z projection, take first half of theta values (axis 1) --
-    theta_mesh_z = theta_mesh[:, :n_theta // 2]
-    phi_mesh_z = phi_mesh[:, :n_theta // 2]
-    wigner_z = wigner[:, :n_theta // 2]
-
-    x = r * np.cos(phi_mesh_z) * np.cos(theta_mesh_z - np.pi / 2)
-    y = r * np.sin(phi_mesh_z) * np.cos(theta_mesh_z - np.pi / 2)
-    z = r * np.sin(theta_mesh_z - np.pi / 2)
-    ax.plot_surface(x, y, np.zeros_like(x) - 1.5, facecolors=cmap(norm(wigner_z)),
-                    shade=False, rstride=1, cstride=1, **kwargs)
-
-    # -- for x projection, take phi values from -pi/2 to pi/2: 1/4 to 3/4 --
-    theta_mesh_x = theta_mesh[n_phi // 4:3 * n_phi // 4, :]
-    phi_mesh_x = phi_mesh[n_phi // 4:3 * n_phi // 4, :]
-    wigner_x = wigner[n_phi // 4:3 * n_phi // 4, :]
-
-    x = r * np.cos(phi_mesh_x) * np.cos(theta_mesh_x - np.pi / 2)
-    y = r * np.sin(phi_mesh_x) * np.cos(theta_mesh_x - np.pi / 2)
-    z = r * np.sin(theta_mesh_x - np.pi / 2)
-    ax.plot_surface(np.zeros_like(y) - 1.5, y, z, facecolors=cmap(norm(wigner_x)),
-                    shade=False, rstride=1, cstride=1, **kwargs)
-
-    ax.set_xlim(-1.5, 1.5)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_zlim(-1.5, 1.5)
-
-    # -- axis lines --
-    ax.plot([-1.5, -1.5], [-1.6, 1.6], [-1.5, -1.5], color='grey', lw=0.4)
-    ax.plot([-1.6, 1.6], [1.5, 1.5], [-1.5, -1.5], color='grey', lw=0.4)
-    ax.plot([-1.5, -1.5], [1.5, 1.5], [-1.6, 1.6], color='grey', lw=0.4)
-
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
-    for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
-        axis.line.set_linewidth(0)
-
-    ax.xaxis.pane.set_facecolor((0.85, 0.85, 0.85, 1))
-    ax.yaxis.pane.set_facecolor((0.8, 0.8, 0.8, 1))
-    ax.zaxis.pane.set_facecolor((0.825, 0.825, 0.825, 1))
-    ax.view_init(22, -60)
-
+    fig, ax = spherical_plot_3d_with_projections(wigner, theta_mesh, phi_mesh,
+                                                  cmap=cmap, vmin=vmin, vmax=vmax,
+                                                  r=r, fig=fig, ax=ax, figsize=figsize,
+                                                  **kwargs)
     return fig, ax, wigner, theta_mesh, phi_mesh
 
 

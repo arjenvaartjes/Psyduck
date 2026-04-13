@@ -13,10 +13,10 @@ def _fq_grid(V_ab, I, B0, gamma, Q, n_theta, n_phi):
     return thetas, phis, fq1, fq2
 
 
-def _surface_3d(ax, r, TH, PH, thetas, phis, cmap_name, sym=False):
-    X = np.abs(r) * np.sin(TH) * np.cos(PH)
-    Y = np.abs(r) * np.sin(TH) * np.sin(PH)
-    Z = np.abs(r) * np.cos(TH)
+def _surface_3d(ax, r, TH, PH, thetas, phis, cmap_name, sym=False, peanut_offset=0):
+    X = np.abs(r+peanut_offset) * np.sin(TH) * np.cos(PH)
+    Y = np.abs(r+peanut_offset) * np.sin(TH) * np.sin(PH)
+    Z = np.abs(r+peanut_offset) * np.cos(TH)
 
     cmap = plt.get_cmap(cmap_name)
     if sym:
@@ -30,8 +30,8 @@ def _surface_3d(ax, r, TH, PH, thetas, phis, cmap_name, sym=False):
 
     for phi_val in [0.0, np.pi]:
         j = int(np.argmin(np.abs(phis - phi_val)))
-        r_slice = r[:, j]
-        for mask, color in [(r_slice >= 0, 'tab:blue'), (r_slice < 0, 'tab:red')]:
+        r_slice = r[:, j] + peanut_offset
+        for mask, color in [(r_slice >= 0, 'tab:red'), (r_slice < 0, 'tab:blue')]:
             if mask.any():
                 th = thetas[mask]
                 rv = np.abs(r_slice[mask])
@@ -105,7 +105,7 @@ def plot_quadrupole_stark_shift(dfq1, dfq2, thetas, phis):
     plt.show()
 
 
-def plot_quadrupole_tensor(V_ab, I, B0, gamma, Q, n_theta=50, n_phi=100):
+def plot_quadrupole_tensor(V_ab, I, B0, gamma, Q, n_theta=50, n_phi=100, peanut_offset=0):
     """Visualize the EFG tensor as 3D color plots of fq1 and fq2.
 
     Plots the first- and second-order quadrupole splittings (fq1, fq2) as a
@@ -129,8 +129,8 @@ def plot_quadrupole_tensor(V_ab, I, B0, gamma, Q, n_theta=50, n_phi=100):
                             hspace=0.4, wspace=-0.6)
 
         configs = [
-            (fq1 * 1e-3, 'RdBu', r'$f_{\rm q1}$ (kHz)', 1),
-            (fq2, 'PuOr', r'$f_{\rm q2}$ (Hz)', 3),
+            (fq1 * 1e-3, 'RdBu_r', r'$f_{\rm q1}$ (kHz)', 1),
+            (fq2, 'PuOr_r', r'$f_{\rm q2}$ (Hz)', 3),
         ]
 
         pending_colorbars = []
@@ -138,13 +138,20 @@ def plot_quadrupole_tensor(V_ab, I, B0, gamma, Q, n_theta=50, n_phi=100):
             ax_side = fig.add_subplot(2, 2, base_idx, projection='3d')
             ax_top = fig.add_subplot(2, 2, base_idx + 1, projection='3d')
 
-            sm = _surface_3d(ax_side, r, TH, PH, thetas, phis, cmap_name)
-            _surface_3d(ax_top, r, TH, PH, thetas, phis, cmap_name)
+            sm = _surface_3d(ax_side, r, TH, PH, thetas, phis, cmap_name, peanut_offset=peanut_offset)
+            _surface_3d(ax_top, r, TH, PH, thetas, phis, cmap_name, peanut_offset=peanut_offset)
 
             ax_side.view_init(elev=30, azim=-70)
             ax_top.view_init(elev=90, azim=-90)
             plt.setp(ax_top.get_zticklabels(), visible=False)
             ax_top.set_zlabel('')
+            ax_top.set_xlim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
+            ax_top.set_ylim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
+            ax_top.set_zlim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
+
+            ax_side.set_xlim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
+            ax_side.set_ylim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
+            ax_side.set_zlim([-np.abs(r).max()*1.1, np.abs(r).max()*1.1])
 
             pending_colorbars.append((ax_side, ax_top, sm, label))
 
