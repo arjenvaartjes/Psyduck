@@ -170,5 +170,3 @@ def plot_quadrupole_tensor(V_ab, I, B0, gamma, Q, n_theta=50, n_phi=100, peanut_
             cb.ax.xaxis.set_ticks_position('top')
 
         fig.patch.set_facecolor('white')
-
-    plt.show()
