@@ -120,7 +120,24 @@ class Spin(SpinInterface):
         if projection not in _dispatch:
             raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
         return _dispatch[projection](self.state, **kwargs)
-
+    
+    def displace(self, theta: float, phi: float) -> None:
+        """
+        Apply displacement operator to the current state.
+        
+        Implements: D(theta, phi) = exp(theta/2 * (e^{i*phi} * J_- - e^{-i*phi} * J_+))
+        
+        Parameters
+        ----------
+        theta : float
+            Displacement angle (colatitude).
+        phi : float
+            Azimuthal angle.
+        """
+        Ip = qt.jmat(self.I, '+')
+        Im = qt.jmat(self.I, '-')
+        D = (theta / 2 * (np.exp(1j * phi) * Im - np.exp(-1j * phi) * Ip)).expm()
+        self.state = D * self.state
     # ============================================================================
     # State initialization methods
     # ============================================================================
@@ -147,3 +164,23 @@ class Spin(SpinInterface):
         # Rotate to x-axis using a pi/2 rotation around y-axis
         R_y = global_rotation(self.I, np.pi / 2, 'y')
         self.state = R_y * psi_cat_z
+
+
+    def make_displaced_coherent_state(self, theta: float, phi: float) -> None:
+        """
+        Create a spin-coherent state with displacement.
+        
+        Initializes the state to |I, -I> (ground state) and applies a
+        displacement operator to create a spin-coherent state.
+        
+        Parameters
+        ----------
+        theta : float
+            Colatitude angle.
+        phi : float
+            Azimuthal angle.
+        """
+        # Initialize to ground state |I, -I>
+        self.state = qt.basis(self.dim, 0)
+        # Apply displacement
+        self.displace(theta, phi)
