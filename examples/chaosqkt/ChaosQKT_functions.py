@@ -23,170 +23,288 @@ from psyduck.operations import global_rotation
 
 
 
+
 # ============================================================================
-# OTOC-related functions
+# Trotterization Functions for Kicked-Top Hamiltonian
 # ============================================================================
 
-def magnetic_quantum_numbers(j):
-    """Return the ordered m-values for a spin-j system."""
-    return np.arange(j, -j - 1, -1)
-
-
-def spin_coherent_projector(j, theta, phi):
-    """Create the projector onto a spin-coherent state."""
-    spin = Spin(I=j)
-    spin.make_displaced_coherent_state(theta=theta, phi=phi)
-    return ket2dm(spin.state)
-
-
-def _as_density_matrix(state):
-    """Convert a ket or density matrix into a density matrix."""
-    return ket2dm(state) if state.isket else state
-
-
-def probs_in_Hprime_basis(state, theta, phi, j):
+def build_trotter_step(spin_I, step_size, omega_drive, Hz_term):
     """
-    Calculate population probabilities in a tilted basis.
-    
+    Construct the first-order Trotter step for the kicked-top Hamiltonian.
+
+    Parameters
+    ----------
+    spin_I : float
+        Spin quantum number.
+    step_size : float
+        Trotter time step.
+    omega_drive : float
+        Y-drive strength in the Hamiltonian Hy = -omega_drive * Iy.
+    Hz_term : qutip.Qobj
+        Higher-order Z Hamiltonian term.
+
+    Returns
+    -------
+    tuple[qutip.Qobj, qutip.Qobj, qutip.Qobj]
+        (U_step, Uy_step, Uz_step)
+    """
+    Uy_step = global_rotation(spin_I, -omega_drive * step_size, 'y')
+    Uz_step = (-1j * step_size * Hz_term).expm()
+    U_step = Uz_step * Uy_step
+    return U_step, Uy_step, Uz_step
+
+
+def run_trotterized_evolution(psi_initial, U_step, n_steps):
+    """
+    Apply a single-step Trotter unitary repeatedly.
+
+    Parameters
+    ----------
+    psi_initial : qutip.Qobj
+        Initial ket.
+    U_step : qutip.Qobj
+        Single Trotter-step unitary.
+    n_steps : int
+        Number of repeated applications.
+
+    Returns
+    -------
+    list[qutip.Qobj]
+        State trajectory including the initial state.
+    """
+    trajectory = [psi_initial.copy()]
+    for _ in range(n_steps):
+        trajectory.append(U_step * trajectory[-1])
+    return trajectory
+
+
+def run_continuous_evolution(psi_initial, H_total, spin_I, total_time, n_steps):
+    """
+    Evolve a spin state continuously on a time grid.
+
+    Parameters
+    ----------
+    psi_initial : qutip.Qobj
+        Initial ket.
+    H_total : qutip.Qobj
+        Full continuous Hamiltonian.
+    spin_I : float
+        Spin quantum number.
+    total_time : float
+        Final evolution time.
+    n_steps : int
+        Number of intervals. The returned trajectory has n_steps + 1 states.
+
+    Returns
+    -------
+    psyduck.spin_series.SpinSeries
+        Continuous trajectory sampled on an equally spaced time grid.
+    """
+    times = np.linspace(0, total_time, n_steps + 1)
+    nucleus = Spin(I=spin_I)
+    nucleus.state = psi_initial.copy()
+    return nucleus.evolve(H_total, times)
+
+
+def state_populations(state):
+    """
+    Return basis-state populations for a ket or density matrix.
+
     Parameters
     ----------
     state : qutip.Qobj
-        Quantum state as either a ket or a density matrix.
-    theta : float
-        Tilt angle (colatitude).
-    phi : float
-        Azimuthal angle.
-    j : float
-        Angular momentum quantum number.
-        
+        Quantum state.
+
     Returns
     -------
-    np.ndarray
-        Population probabilities in tilted basis.
+    numpy.ndarray
+        Population vector over the computational basis.
     """
-    rho = _as_density_matrix(state)
+    if state.type == 'ket':
+        return np.abs(state.full().ravel()) ** 2
+    return np.real(state.diag())
 
-    # This rotation maps the z-basis onto the measurement axis n(theta, phi).
-    rotation_axis = np.array([-np.sin(phi), np.cos(phi), 0.0], dtype=float)
-    rotation = global_rotation(j, theta, rotation_axis)
-    rotated_rho = rotation.dag() * rho * rotation
 
-    populations = np.asarray(np.real_if_close(np.diag(rotated_rho.full())), dtype=float)
-    populations = np.clip(populations, 0.0, None)
+def states_to_population_array(states):
+    """
+    Convert a list of states into a population array.
 
-    total_population = populations.sum()
-    if total_population > 0:
-        populations = populations / total_population
+    Parameters
+    ----------
+    states : list[qutip.Qobj]
+        List of kets or density matrices.
 
-    return populations
+    Returns
+    -------
+    numpy.ndarray
+        Array of shape (n_states, dim).
+    """
+    return np.array([state_populations(state) for state in states])
+
+
+###### OTOC ######
+def probs_in_Hprime_basis(state, theta, phi, j=7/2):
+    """
+    Compute populations in the rotated H' basis used by the OTOC protocol.
+
+    The basis rotation is implemented with the standard psyduck full-spin
+    rotations R(phi, theta) = Rz(phi) Ry(theta).
+
+    Parameters
+    ----------
+    state : qutip.Qobj
+        Ket or density matrix.
+    theta : float
+        Colatitude angle defining the rotated basis.
+    phi : float
+        Azimuthal angle defining the rotated basis.
+    j : float, optional
+        Spin quantum number.
+
+    Returns
+    -------
+    numpy.ndarray
+        Population vector in the H' basis.
+    """
+    rho = state * state.dag() if state.isket else state
+    rotation = global_rotation(j, phi, 'z') * global_rotation(j, theta, 'y')
+    rho_prime = rotation.dag() * rho * rotation
+    return np.real_if_close(np.array(rho_prime.diag(), dtype=complex)).real
 
 
 def otoc_from_populations(m_vals, probs, eps):
     """
-    Calculate OTOC from population distribution.
+    Reconstruct the OTOC signal from H'-basis populations.
+
+    Parameters
+    ----------
+    m_vals : array_like
+        Magnetic quantum numbers ordered consistently with the populations.
+    probs : array_like
+        H'-basis populations.
+    eps : float
+        Small rotation angle in W_eps = exp(-i eps Jz).
+
+    Returns
+    -------
+    tuple[float, complex]
+        (F, W_expect), where F = |<W_eps>|^2.
+    """
+    phases = np.exp(-1j * eps * np.asarray(m_vals, dtype=float))
+    W_expect = np.sum(np.asarray(probs, dtype=complex) * phases)
+    F = float(np.abs(W_expect) ** 2)
+    return F, W_expect
+
+
+def otoc_trajectory(states, theta, phi, eps, j=7/2):
+    """
+    Compute the OTOC trajectory from a list of evolved states.
+
+    Parameters
+    ----------
+    states : list[qutip.Qobj]
+        State trajectory.
+    theta : float
+        Colatitude angle defining the measurement basis.
+    phi : float
+        Azimuthal angle defining the measurement basis.
+    eps : float
+        Small rotation angle in W_eps = exp(-i eps Jz).
+    j : float, optional
+        Spin quantum number.
+
+    Returns
+    -------
+    tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]
+        (C_values, F_values, populations, m_values)
+    """
+    m_vals = np.arange(j, -j - 1, -1, dtype=float)
+    populations = []
+    F_values = []
+    C_values = []
+
+    for state in states:
+        probs = probs_in_Hprime_basis(state, theta, phi, j=j)
+        F_value, _ = otoc_from_populations(m_vals, probs, eps)
+        populations.append(probs)
+        F_values.append(F_value)
+        C_values.append(1.0 - F_value)
+
+    return (
+        np.array(C_values, dtype=float),
+        np.array(F_values, dtype=float),
+        np.array(populations, dtype=float),
+        m_vals,
+    )
+
+
+
+def kappa_to_opx_phase_subspace(kappa, J, initial_state, order):
+    """
+    Calculate SNAP gate phases from kappa parameter.
     
-    OTOC is computed as F = sum_m P(m) * exp(i * eps * m)
+    This function computes the diagonal phase angles for a SNAP gate that implements
+    a higher-order Hamiltonian H = kappa * Iz^order. The phases are calculated for
+    a specific subspace defined by initial_state and J.
     
     Parameters
     ----------
-    m_vals : np.ndarray
-        Eigenvalues of the angular momentum.
-    probs : np.ndarray
-        Population probabilities.
-    eps : float
-        Effective perturbation parameter.
+    kappa : float
+        Kick strength parameter (phase accumulation per pulse).
+    J : float
+        Spin quantum number.
+    initial_state : int
+        Starting state (typically 0 for ground state).
+    order : int
+        Order of the kick (2 for quadratic, 3 for cubic, etc.).
         
     Returns
     -------
-    complex
-        Complex OTOC amplitude before taking the modulus squared.
-    contrib : np.ndarray
-        Individual contributions.
+    list
+        SNAP phases (in rotations, i.e., normalized by 2π) for each basis state.
+        
+    Notes
+    -----
+    The SNAP gate is defined as: SNAP = exp(-i * Iz^order * kappa / (order * J^(order-1)))
+    This function extracts the diagonal phases from the SNAP unitary and maps them
+    to the full Hilbert space with appropriate masking.
     """
-    contrib = probs * np.exp(1j * eps * m_vals)
-    F = np.sum(contrib)
-    return F, contrib
-
-
-def otoc_trajectory(states, theta, phi, eps, j):
-    """
-    Compute the OTOC growth and basis populations for a state trajectory.
-
-    Parameters
-    ----------
-    states : Sequence[qutip.Qobj]
-        List of quantum states or density matrices.
-    theta, phi : float
-        Spherical angles defining the measurement axis.
-    eps : float
-        Perturbation strength in the OTOC phase factor.
-    j : float
-        Angular momentum quantum number.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray, np.ndarray]
-        OTOC growth values C(t) = 1 - |F(t)|^2, populations in the tilted basis,
-        and the ordered magnetic quantum numbers.
-    """
-    m_vals = magnetic_quantum_numbers(j)
-    population_history = []
-    otoc_growth = []
-
-    for state in states:
-        probs = probs_in_Hprime_basis(state, theta, phi, j)
-        F, _ = otoc_from_populations(m_vals, probs, eps)
-        population_history.append(probs)
-        growth = 1.0 - float(np.abs(F) ** 2)
-        otoc_growth.append(float(np.clip(np.real_if_close(growth), 0.0, 1.0)))
-
-    return np.asarray(otoc_growth), np.asarray(population_history), m_vals
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-def normalize_data(data):
-    """Normalize data to [0, 1] range."""
-    data = np.asarray(data)
-    data_min = np.min(data)
-    data_max = np.max(data)
-    if data_max == data_min:
-        return np.zeros_like(data, dtype=float)
-    return (data - data_min) / (data_max - data_min)
-
-
-def smooth_data(data, window_size=5):
-    """Smooth data using moving average."""
-    data = np.asarray(data)
-    if window_size < 1:
-        return data
-    return np.convolve(data, np.ones(window_size)/window_size, mode='same')
-
-
-def downsample_data(data, factor=5):
-    """Downsample data by averaging."""
-    data = np.asarray(data)
-    new_len = len(data) // factor
-    return np.mean(data[:new_len*factor].reshape(new_len, factor), axis=1)
-
-
-def calculate_statistics(data):
-    """Calculate basic statistics."""
-    data = np.asarray(data)
-    return {
-        'mean': np.mean(data),
-        'std': np.std(data),
-        'min': np.min(data),
-        'max': np.max(data),
-        'median': np.median(data),
-    }
-
-
-def find_peaks_simple(data, threshold=0.5):
-    """Find peaks in data using simple threshold."""
-    data = np.asarray(data)
-    above_threshold = data > threshold
-    diff = np.diff(above_threshold.astype(int))
-    peaks = np.where(diff == 1)[0] + 1
-    return peaks
+    # Construct the tridiagonal matrix structure
+    A = -np.tri(int(2*J), int(2*J), 0)
+    A_inv = np.linalg.inv(A)
+    
+    # Get Iz operator
+    Iz = jmat(J, 'z')
+    
+    # Construct SNAP unitary
+    SNAP = (-1j * (Iz ** order) * kappa / (order * J ** (order - 1))).expm()
+    
+    # Extract diagonal phases (in radians)
+    SNAP_angle = np.angle(SNAP.diag()) * 180 / np.pi
+    
+    # Reference to the first element
+    SNAP_angle = SNAP_angle - SNAP_angle[0]
+    
+    # Invert to get optical dipole drive phases
+    opx_phase = A_inv @ SNAP_angle[1:]
+    
+    # Normalize to [0, 1) (in units of full rotations)
+    opx_phase_SNAP = ((opx_phase) / 360) % 1
+    opx_phase_SNAP = np.round(opx_phase_SNAP, 6).tolist()
+    
+    # Map to full Hilbert space with mask
+    mask_list = ([0] * int(initial_state) + 
+                 [1] * int(J * 2) + 
+                 [0] * int(int(2*J) + 1 - initial_state - int(J * 2)))
+    
+    result = []
+    a_index = 0
+    
+    for m in mask_list:
+        if m == 1:
+            result.append(opx_phase_SNAP[a_index])
+            a_index += 1
+        else:
+            result.append(0)
+    
+    return result

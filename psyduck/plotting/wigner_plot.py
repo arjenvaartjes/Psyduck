@@ -373,6 +373,44 @@ def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wi
                                 fig=fig, ax=ax, **kwargs)
 
 
+def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_list,
+                                n_theta=101, n_phi=201, cmap='bwr'):
+    """
+    Plot a single frame from a kicked-top Wigner trajectory.
+
+    Parameters
+    ----------
+    kick_number : int
+        Index of the state to display.
+    psi_list : list[qutip.Qobj]
+        Kicked-top state trajectory.
+    entropy_list : list[float]
+        Entropy values for each state.
+    overlap_list : list[complex]
+        Overlaps with the initial state for each state.
+    n_theta, n_phi : int, optional
+        Angular grid sizes for the Wigner plot.
+    cmap : str, optional
+        Matplotlib colormap name.
+    """
+    fig, ax, _ = wigner_plot_hammer(
+        psi_list[kick_number],
+        n_theta=n_theta,
+        n_phi=n_phi,
+        cmap=cmap
+    )
+    ax.set_title(
+        f"Kick {kick_number}: Wigner Function Evolution\n"
+        f"Entropy: {entropy_list[kick_number]:.6f} | "
+        f"Overlap: {abs(overlap_list[kick_number]):.6f}",
+        fontsize=12,
+        fontweight='bold'
+    )
+    plt.tight_layout()
+    plt.show()
+
+
+
 def make_wigner_gif(states, filename='wigner.gif', projection='hammer', fps=10, dpi=100, **kwargs):
     """Create a GIF of the spin Wigner function over a sequence of states.
 
