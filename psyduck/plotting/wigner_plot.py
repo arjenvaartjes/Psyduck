@@ -117,8 +117,8 @@ def spherical_plot_3d_with_projections(data, theta_mesh=None, phi_mesh=None, cma
     The main sphere is drawn with :func:`spherical_plot_3d`.  Three additional
     flat panels show projections onto the x=−1.5, y=+1.5, and z=−1.5 planes.
 
-    :param data: 2-D array of values, shape (n_phi, n_theta) — phi-major,
-                 as returned by QuTiP's spin_wigner / spin_q_function.
+    :param data: 2-D array of values, shape (n_theta, n_phi) — theta-major
+                 (rows = polar angle, cols = azimuthal angle).
     :param theta_mesh: Polar-angle mesh in [0, π], same shape as data.
     :param phi_mesh: Azimuthal-angle mesh in [0, 2π], same shape as data.
     :param cmap: Matplotlib colormap name or object.
@@ -280,7 +280,7 @@ def wigner_plot(rho, dpi=300, prob_function='wigner'):
     spherical_plot_hammer(W, theta_mesh, phi_mesh, fig=fig, ax=ax2)
 
 
-def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', figsize=(8, 6),
+def projection_plot_spin_wigner(psi, n_theta=200, n_phi=199, r=1, cmap='RdBu_r', figsize=(8, 6),
                                 ax=None, fig=None, vmin=None, vmax=None, prob_function='wigner',
                                 **kwargs):
     """Plot spin Wigner/Husimi function on a sphere with three side projections.
@@ -311,7 +311,8 @@ def projection_plot_spin_wigner(psi, n_theta=200, n_phi=200, r=1, cmap='RdBu', f
     elif prob_function == 'wigner':
         wigner, theta_mesh, phi_mesh = spin_wigner(psi, theta, phi)
 
-    fig, ax = spherical_plot_3d_with_projections(wigner, theta_mesh, phi_mesh,
+    # QuTiP returns (n_phi, n_theta) phi-major; transpose to theta-major (n_theta, n_phi)
+    fig, ax, pcm = spherical_plot_3d_with_projections(wigner.T, theta_mesh.T, phi_mesh.T,
                                                   cmap=cmap, vmin=vmin, vmax=vmax,
                                                   r=r, fig=fig, ax=ax, figsize=figsize,
                                                   **kwargs)
