@@ -32,7 +32,7 @@ class CatQubit(SpinInterface):
     """
 
     def __init__(self, I: float = 7 / 2, axis: str = 'Ix'):
-        assert I * 2 == int(I * 2), "Spin must be half-integer"
+        assert (I * 2) % 2 == 1, "Spin must be half-integer"
         self.I = I
         self.dim = int(2 * I + 1)
         self.axis = axis
@@ -59,8 +59,9 @@ class CatQubit(SpinInterface):
     def expectation(self, operator: qt.Qobj) -> complex | float:
         return qt.expect(operator, self.state)
 
-    def apply_operator(self, U: qt.Qobj) -> None:
+    def apply_operator(self, U: qt.Qobj) -> "CatQubit":
         self.state = U * self.state
+        return self
 
     def copy(self) -> CatQubit:
         new = CatQubit(self.I, self.axis)

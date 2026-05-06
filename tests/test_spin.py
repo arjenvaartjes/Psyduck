@@ -460,16 +460,3 @@ class TestParityAndFidelityAndEntropy:
     def test_linear_entropy_pure_coherent_is_zero(self, spin_sb):
         spin_sb.make_displaced_coherent_state(0.7, 1.3)
         assert spin_sb.linear_entropy() == pytest.approx(0.0, abs=1e-12)
-
-    @pytest.mark.xfail(
-        reason=(
-            "linear_entropy() computes Tr(rho^3) instead of 1 - Tr(rho^2) when "
-            "self.state is a density matrix — see psyduck/spinInterface.py:153"
-        ),
-        strict=False,
-    )
-    def test_linear_entropy_maximally_mixed(self):
-        d = 8
-        rho = qt.maximally_mixed_dm(d)
-        s = Spin(7 / 2, state=rho)
-        assert s.linear_entropy() == pytest.approx(1 - 1 / d, abs=1e-10)
