@@ -139,9 +139,9 @@ class TestApplyOperator:
         spin_half.apply_operator(sigma_x)
         assert spin_half.Iz() == pytest.approx(-1 / 2, abs=1e-12)
 
-    def test_returns_none(self, spin_sb):
+    def test_returns_self(self, spin_sb):
         result = spin_sb.apply_operator(qt.qeye(spin_sb.dim))
-        assert result is None
+        assert isinstance(result, Spin)
 
     def test_apply_x_twice_is_identity(self, spin_half):
         before = spin_half.state.copy()
