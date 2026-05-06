@@ -332,14 +332,14 @@ def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigne
     if ax is None:
         fig = plt.figure() if fig is None else fig
         ax = fig.add_subplot(111, projection='3d')
-    fig, ax = spherical_plot_3d(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
+    fig, ax, pcm = spherical_plot_3d(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
                                 fig=fig, ax=ax, **kwargs)
     s = 1.1
     ax.set_xlim([-s, s])
     ax.set_ylim([-s, s])
     ax.set_zlim([-s, s])
     ax.set_axis_off()
-    return fig, ax
+    return fig, ax, pcm
 
 
 def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigner',
@@ -372,6 +372,51 @@ def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wi
 
     return spherical_plot_polar(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
                                 fig=fig, ax=ax, **kwargs)
+
+
+def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_list,
+                                n_theta=101, n_phi=201, cmap='bwr'):
+    """
+    Plot a single frame from a kicked-top Wigner trajectory.
+    
+    Designed for use with ipywidgets.interact() to display one plot at a time
+    as the slider is moved. Previous plots are automatically closed.
+
+    Parameters
+    ----------
+    kick_number : int
+        Index of the state to display.
+    psi_list : list[qutip.Qobj]
+        Kicked-top state trajectory.
+    entropy_list : list[float]
+        Entropy values for each state.
+    overlap_list : list[complex]
+        Overlaps with the initial state for each state.
+    n_theta, n_phi : int, optional
+        Angular grid sizes for the Wigner plot.
+    cmap : str, optional
+        Matplotlib colormap name.
+    """
+    # Close all previous figures to ensure only one plot is displayed
+    plt.close('all')
+    
+    fig, ax, _ = wigner_plot_hammer(
+        psi_list[kick_number],
+        n_theta=n_theta,
+        n_phi=n_phi,
+        cmap=cmap
+    )
+    ax.set_title(
+        f"Kick {kick_number}: Wigner Function Evolution\n"
+        f"Entropy: {entropy_list[kick_number]:.6f} | "
+        f"Overlap: {abs(overlap_list[kick_number]):.6f}",
+        fontsize=12,
+        fontweight='bold'
+    )
+    plt.tight_layout()
+    plt.show()
+    
+
 
 
 def make_wigner_gif(states, filename='wigner.gif', projection='hammer', fps=10, dpi=100, **kwargs):

@@ -137,3 +137,14 @@ class SpinInterface(ABC):
         U = shift_operator(self.I)
         self.apply_operator(U)
     
+    def linear_entropy(self) -> float:
+        """Calculate linear entropy of the current quantum state.
+        
+        Linear entropy is defined as S = 1 - Tr(ρ²), which measures the
+        purity of the quantum state. For a pure state, S = 0. For a maximally
+        mixed state, S = 1 - 1/d (where d is the dimension).
+        
+        :return: Linear entropy value
+        """
+        rho = self.dm
+        return 1.0 - qt.expect(rho * rho, self.state)
