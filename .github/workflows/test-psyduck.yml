@@ -1,0 +1,25 @@
+name: test-psyduck.yml
+on: push
+
+jobs:
+  test-psyduck:
+    name: test psyduck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.16"
+          enable-cache: true
+
+      - name: Set up python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run psyduck tests
+        run: uv run pytest
