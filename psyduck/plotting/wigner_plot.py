@@ -331,14 +331,14 @@ def wigner_plot_3d(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigne
     if ax is None:
         fig = plt.figure() if fig is None else fig
         ax = fig.add_subplot(111, projection='3d')
-    fig, ax = spherical_plot_3d(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
+    fig, ax, pcm = spherical_plot_3d(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
                                 fig=fig, ax=ax, **kwargs)
     s = 1.1
     ax.set_xlim([-s, s])
     ax.set_ylim([-s, s])
     ax.set_zlim([-s, s])
     ax.set_axis_off()
-    return fig, ax
+    return fig, ax, pcm
 
 
 def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigner',
@@ -377,6 +377,9 @@ def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_lis
                                 n_theta=101, n_phi=201, cmap='bwr'):
     """
     Plot a single frame from a kicked-top Wigner trajectory.
+    
+    Designed for use with ipywidgets.interact() to display one plot at a time
+    as the slider is moved. Previous plots are automatically closed.
 
     Parameters
     ----------
@@ -393,6 +396,9 @@ def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_lis
     cmap : str, optional
         Matplotlib colormap name.
     """
+    # Close all previous figures to ensure only one plot is displayed
+    plt.close('all')
+    
     fig, ax, _ = wigner_plot_hammer(
         psi_list[kick_number],
         n_theta=n_theta,
@@ -408,6 +414,7 @@ def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_lis
     )
     plt.tight_layout()
     plt.show()
+    
 
 
 

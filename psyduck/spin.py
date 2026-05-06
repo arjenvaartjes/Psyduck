@@ -121,27 +121,9 @@ class Spin(SpinInterface):
             raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
         return _dispatch[projection](self.state, **kwargs)
     
-    def displace(self, theta: float, phi: float) -> None:
-        """
-        Apply displacement operator to the current state.
-        
-        Implements: D(theta, phi) = exp(theta/2 * (e^{i*phi} * J_- - e^{-i*phi} * J_+))
-        
-        Parameters
-        ----------
-        theta : float
-            Displacement angle (colatitude).
-        phi : float
-            Azimuthal angle.
-        """
-        Ip = qt.jmat(self.I, '+')
-        Im = qt.jmat(self.I, '-')
-        D = (theta / 2 * (np.exp(1j * phi) * Im - np.exp(-1j * phi) * Ip)).expm()
-        self.state = D * self.state
     # ============================================================================
     # State initialization methods
     # ============================================================================
-
     def make_eigenstate(self, eigenvalue):
         self.state = qt.basis(self.dim, int(-eigenvalue + self.I))
 
@@ -168,19 +150,24 @@ class Spin(SpinInterface):
 
     def make_displaced_coherent_state(self, theta: float, phi: float) -> None:
         """
-        Create a spin-coherent state with displacement.
+        Create a spin-coherent state at specified spherical angles.
         
-        Initializes the state to |I, -I> (ground state) and applies a
-        displacement operator to create a spin-coherent state.
+        Initializes the state to |I, -I> (ground state) and applies global
+        rotations to create a spin-coherent state at spherical coordinates (theta, phi).
         
         Parameters
         ----------
         theta : float
-            Colatitude angle.
+            Polar angle from the z-axis (colatitude), range [0, π].
         phi : float
-            Azimuthal angle.
+            Azimuthal angle around the z-axis, range [0, 2π].
         """
-        # Initialize to ground state |I, -I>
+        # Initialize to ground state |I, -I> (south pole)
         self.state = qt.basis(self.dim, 0)
-        # Apply displacement
-        self.displace(theta, phi)
+        
+        # Create spin-coherent state using global rotations:
+        # 1. Rotate around y-axis by theta to reach polar angle
+        # 2. Rotate around z-axis by phi to set azimuthal angle
+        R_y = global_rotation(self.I, theta, 'y')
+        R_z = global_rotation(self.I, phi, 'z')
+        self.state = (R_z * R_y) * self.state

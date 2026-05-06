@@ -6,6 +6,9 @@ from typing import Union
 from numpy import ndarray
 
 from psyduck.fit_toolbox import ExponentialFit
+from psyduck.hamiltonians import Hz_order
+from psyduck.operations import get_spin_operators
+from psyduck.spin import Spin
 
 
 # ============================================================================
@@ -114,63 +117,51 @@ def kicked_dynamics(psi_initial, tau, kappa, I, N=1, order=2, pulse_type='pulse'
     exp_list : list
         List of expectation value arrays [<Jx>, <Jy>, <Jz>].
     """
-    S = I
-    dim = int(2 * S + 1)
-    chi = kappa / 2
     
-    # Create spin operators
-    Jx = qt.jmat(S, 'x')
-    Jy = qt.jmat(S, 'y')
-    Jz = qt.jmat(S, 'z')
+    # Create a Spin object to hold and track the state
+    spin = Spin(I=I, state=psi_initial.copy())
+    
+    # Get spin operators using psyduck utilities
+    Ix, Iy, Iz = get_spin_operators(I)
     
     # Free Hamiltonian H0
-    H0 = (np.pi / 2) * (-Jy)
+    H0 = (np.pi / 2) * (-Iy)  # Free evolution around -y axis with period 4τ
     
     # Precompute the free evolution operator
     U0 = (-1j * H0 * tau).expm()
     
-    # Larmor pulse (instantaneous)
-    Ularmor = (-1j * chi * Jz).expm()
+    # Larmor pulse (instantaneous Iz)
+    Ularmor = (-1j * (kappa / 2) * Iz).expm()
     
-    # Nonlinear kick unitary
-    Upulse = (-1j * Jz**order * kappa / (order * S**(order - 1))).expm()
+    # Nonlinear kick unitary using Hz_order from hamiltonians.py
+    # Iz**2 or higher order depending on 'order' parameter
+    H_kick = Hz_order(kappa, order, I)
+    Upulse = (-1j * H_kick).expm()
     
-    # Helper function: calculate linear entropy
-    def qudit_linear_entropy(psi):
-        """Calculate linear entropy of a quantum state."""
-        rho = psi * psi.dag() if psi.isket else psi
-        return 1.0 - qt.expect(rho * rho, psi)
-    
-    # Helper function: calculate expectation values
-    def qudit_exp(psi):
-        """Calculate expectation values of angular momentum operators."""
-        exp_x = qt.expect(Jx, psi)
-        exp_y = qt.expect(Jy, psi)
-        exp_z = qt.expect(Jz, psi)
-        return [exp_x, exp_y, exp_z]
+    # Store initial state for overlap calculation
+    psi_initial_normalized = psi_initial / psi_initial.norm()
     
     # Evolve the state stroboscopically
-    psi = psi_initial.copy()
-    psi_list = [psi.copy()]
-    overlap_list = [psi.overlap(psi_initial)]
-    entropy_list = [qudit_linear_entropy(psi)]
-    exp_list = [qudit_exp(psi)]
+    psi_list = [spin.state.copy()]
+    overlap_list = [abs(psi_initial_normalized.dag() * spin.state)]
+    entropy_list = [spin.linear_entropy()]
+    exp_list = [[spin.expectation(Ix), spin.expectation(Iy), spin.expectation(Iz)]]
     
     for n in range(N):
         # Free evolution
-        psi = U0 * psi
+        spin.apply_operator(U0)
         
         # Instantaneous pulse (choice between Larmor and nonlinear kick)
         if pulse_type.lower() == 'larmor':
-            psi = Ularmor * psi
+            spin.apply_operator(Ularmor)
         else:  # Default to 'pulse'
-            psi = Upulse * psi
+            spin.apply_operator(Upulse)
         
         # Store results
-        psi_list.append(psi.copy())
-        overlap_list.append(psi.overlap(psi_initial))
-        entropy_list.append(qudit_linear_entropy(psi))
-        exp_list.append(qudit_exp(psi))
+        psi_list.append(spin.state.copy())
+        overlap_list.append(abs(psi_initial_normalized.dag() * spin.state))
+        entropy_list.append(spin.linear_entropy())
+        exp_list.append([spin.expectation(Ix), spin.expectation(Iy), spin.expectation(Iz)])
     
     return psi_list, overlap_list, entropy_list, exp_list
 

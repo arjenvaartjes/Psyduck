@@ -137,7 +137,7 @@ class SpinInterface(ABC):
         U = shift_operator(self.I)
         self.apply_operator(U)
     
-    def qudit_linear_entropy(self) -> float:
+    def linear_entropy(self) -> float:
         """Calculate linear entropy of the current quantum state.
         
         Linear entropy is defined as S = 1 - Tr(ρ²), which measures the
