@@ -9,7 +9,9 @@
       "Bash(/c/Windows/System32/cmd.exe /c \"cd /d C:\\\\GitHub\\\\Psyduck && uv run python -c \"\"import json; nb=json.load\\(open\\(''examples/quadrupole modeling/EFG_simulation_analysis.ipynb''\\)\\); print\\(len\\(nb[''cells'']\\)\\); print\\(nb[''cells''][-1][''id'']\\)\"\"\")",
       "Read(//c/Users/z5380600/AppData/Local/Programs/**)",
       "Bash(ls /c/Python*)",
-      "Read(//c/Users/z5380600/**)"
+      "Read(//c/Users/z5380600/**)",
+      "Bash(jq -r '.cells[0].source | join\\(\"\"\\)' \"/Users/sean/Code/Psyduck/examples/chaosqkt/ClassicalSimulations.ipynb\")",
+      "Read(//tmp/**)"
     ]
   }
 }
