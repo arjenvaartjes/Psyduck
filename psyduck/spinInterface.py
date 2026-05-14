@@ -26,7 +26,7 @@ class SpinInterface(ABC):
         ...
 
     @abstractmethod
-    def apply_operator(self, U: qt.Qobj) -> None:
+    def apply_operator(self, U: qt.Qobj) -> "SpinInterface":
         """Apply a unitary operator to the current state.
 
         :param U: Unitary operator (Qobj)
@@ -34,7 +34,7 @@ class SpinInterface(ABC):
         ...
 
     @abstractmethod
-    def copy(self):
+    def copy(self) -> "SpinInterface":
         """Create a deep copy of this Spin object.
 
         :return: New Spin object with copied state
@@ -114,7 +114,7 @@ class SpinInterface(ABC):
         """
         return qt.fidelity(self.state, target_state)
     
-    def global_rotate(self, angle: float, axis: Union[str, ndarray]) -> None:
+    def global_rotate(self, angle: float, axis: Union[str, ndarray]) -> "SpinInterface":
         """Apply a global rotation to the spin state.
 
         :param angle: Rotation angle in radians
@@ -122,8 +122,9 @@ class SpinInterface(ABC):
         """
         U = global_rotation(self.I, angle, axis)
         self.apply_operator(U)
+        return self
 
-    def subspace_rotate(self, angle: float, axis: Union[str, ndarray], levels: Union[tuple, list, ndarray]) -> None:
+    def subspace_rotate(self, angle: float, axis: Union[str, ndarray], levels: Union[tuple, list, ndarray]) -> "SpinInterface":
         """Apply a rotation in a two-level subspace (Givens rotation).
 
         :param angle: Rotation angle in radians
@@ -132,10 +133,12 @@ class SpinInterface(ABC):
         """
         U = subspace_rotation(self.I, angle, axis, levels)
         self.apply_operator(U)
+        return self
 
-    def shift(self):
+    def shift(self) -> "SpinInterface":
         U = shift_operator(self.I)
         self.apply_operator(U)
+        return self
     
     def linear_entropy(self) -> float:
         """Calculate linear entropy of the current quantum state.

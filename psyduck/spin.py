@@ -40,12 +40,13 @@ class Spin(SpinInterface):
         """
         return qt.expect(operator, self.state)
 
-    def apply_operator(self, U: qt.Qobj) -> None:
+    def apply_operator(self, U: qt.Qobj) -> "Spin":
         """Apply a unitary operator to the current state.
 
         :param U: Unitary operator (Qobj)
         """
         self.state = U * self.state
+        return self
 
     def state_labels(self):
         return [f'|{self.dim - 1 - 2 * i}/2>' for i in range(0, self.dim)]
@@ -127,7 +128,7 @@ class Spin(SpinInterface):
     def make_eigenstate(self, eigenvalue):
         self.state = qt.basis(self.dim, int(-eigenvalue + self.I))
 
-    def make_zcat_state(self, phi: float) -> None:
+    def make_zcat_state(self, phi: float) -> "Spin":
         """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2).
 
         :param phi: Relative phase angle in radians
@@ -135,8 +136,9 @@ class Spin(SpinInterface):
         d = int(2 * self.I + 1)
         psi_cat = (qt.basis(d, 0) + np.exp(1j * phi) * qt.basis(d, d - 1)).unit()
         self.state = psi_cat
+        return self
 
-    def make_xcat_state(self, phi: float) -> None:
+    def make_xcat_state(self, phi: float) -> "Spin":
         """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2) rotated to x-axis.
 
         :param phi: Relative phase angle in radians
@@ -146,9 +148,10 @@ class Spin(SpinInterface):
         # Rotate to x-axis using a pi/2 rotation around y-axis
         R_y = global_rotation(self.I, np.pi / 2, 'y')
         self.state = R_y * psi_cat_z
+        return self
 
 
-    def make_displaced_coherent_state(self, theta: float, phi: float) -> None:
+    def make_displaced_coherent_state(self, theta: float, phi: float) -> "Spin":
         """
         Create a spin-coherent state at specified spherical angles.
         
@@ -171,3 +174,4 @@ class Spin(SpinInterface):
         R_y = global_rotation(self.I, theta, 'y')
         R_z = global_rotation(self.I, phi, 'z')
         self.state = (R_z * R_y) * self.state
+        return self
