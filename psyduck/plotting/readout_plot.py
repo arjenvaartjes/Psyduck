@@ -61,7 +61,7 @@ def plot_transition_matrix(transition_matrix, electron_states=1, ax=None, title=
     plt.colorbar(pcm, ax=ax, label='Abs')
     return ax
 
-def plot_transition_matrix_simplified(eigenstate_matrix, electron_states=3, ax=None) -> plt.Axes:
+def plot_transition_matrix_simplified(eigenstate_matrix, electron_states=3, ax=None, title=None) -> plt.Axes:
     """Plot the decomposition of eigenstates in the nuclear-spin ⊗ electron basis. No labels
 
     Parameters
@@ -92,7 +92,10 @@ def plot_transition_matrix_simplified(eigenstate_matrix, electron_states=3, ax=N
     pcm = ax.pcolormesh(np.arange(n), np.arange(n), Z,
                         norm=mcolors.LogNorm(), cmap="viridis")
 
-    electron_labels = [r"$\downarrow$", r"$\uparrow$", r"$0$"]
+    if electron_states < 4:
+        electron_labels = [r"$\downarrow$", r"$\uparrow$", r"$0$"]
+    else:
+        electron_labels = [str(i) for i in range(electron_states)]
 
     ax.set_xticks([])
     ax.set_yticks([])
@@ -132,6 +135,6 @@ def plot_transition_matrix_simplified(eigenstate_matrix, electron_states=3, ax=N
         ax.text(-label_offset, center, electron_labels[e],
                 transform=y_trans, ha='right', va='center', fontsize=13, clip_on=False)
 
-    ax.set_title('Nuclear Eigenstates of the Hamiltonian')
+    ax.set_title(title if title else 'Nuclear Eigenstates of the Hamiltonian')
     plt.colorbar(pcm, ax=ax, label='|amplitude|')
     return ax

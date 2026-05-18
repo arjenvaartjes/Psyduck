@@ -121,12 +121,14 @@ class Spin(SpinInterface):
         if projection not in _dispatch:
             raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
         return _dispatch[projection](self.state, **kwargs)
-    
+
     # ============================================================================
     # State initialization methods
     # ============================================================================
-    def make_eigenstate(self, eigenvalue):
+
+    def make_eigenstate(self, eigenvalue) -> "Spin":
         self.state = qt.basis(self.dim, int(-eigenvalue + self.I))
+        return self
 
     def make_zcat_state(self, phi: float) -> "Spin":
         """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2).
@@ -154,10 +156,10 @@ class Spin(SpinInterface):
     def make_displaced_coherent_state(self, theta: float, phi: float) -> "Spin":
         """
         Create a spin-coherent state at specified spherical angles.
-        
+
         Initializes the state to |I, -I> (ground state) and applies global
         rotations to create a spin-coherent state at spherical coordinates (theta, phi).
-        
+
         Parameters
         ----------
         theta : float
@@ -167,7 +169,7 @@ class Spin(SpinInterface):
         """
         # Initialize to ground state |I, -I> (south pole)
         self.state = qt.basis(self.dim, 0)
-        
+
         # Create spin-coherent state using global rotations:
         # 1. Rotate around y-axis by theta to reach polar angle
         # 2. Rotate around z-axis by phi to set azimuthal angle

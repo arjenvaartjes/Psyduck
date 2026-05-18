@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import numpy as np
 import qutip as qt
+import matplotlib.pyplot as plt
 
 from psyduck import SpinInterface
+from psyduck.operations import global_rotation
+from psyduck.plotting import wigner_plot_hammer, wigner_plot_3d, wigner_plot_polar, plot_wigner_and_populations
 
 
 def _dm_to_ket(dm: qt.Qobj) -> qt.Qobj:
@@ -118,7 +121,29 @@ class CatQubit(SpinInterface):
         """Reset to basis state |mz⟩."""
         self.state = qt.basis(self.dim, mz)
 
-    def encode(self, sign: int = 1) -> None:
+    def make_zcat_state(self, phi: float) -> "Spin":
+        """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2).
+
+        :param phi: Relative phase angle in radians
+        """
+        d = int(2 * self.I + 1)
+        psi_cat = (qt.basis(d, 0) + np.exp(1j * phi) * qt.basis(d, d - 1)).unit()
+        self.state = psi_cat
+        return self
+
+    def make_xcat_state(self, phi: float) -> "Spin":
+        """Prepare a cat state of the form (|I, -I> + e^(i*phi) |I, I>)/sqrt(2) rotated to x-axis.
+
+        :param phi: Relative phase angle in radians
+        """
+        d = int(2 * self.I + 1)
+        psi_cat_z = (qt.basis(d, 0) + np.exp(1j * phi) * qt.basis(d, d - 1)).unit()
+        # Rotate to x-axis using a pi/2 rotation around y-axis
+        R_y = global_rotation(self.I, np.pi / 2, 'y')
+        self.state = R_y * psi_cat_z
+        return self
+
+    def encode(self, sign: int = 1) -> "CatQubit":
         """Rotate from the Iz basis into the encoding axis basis.
 
         Also builds the logical Pauli operators Lx/Ly/Lz in the encoded frame.
@@ -139,10 +164,12 @@ class CatQubit(SpinInterface):
         for key in ('Lx_z', 'Ly_z', 'Lz_z'):
             out_key = key[:-2]  # strip '_z'
             self.spin_op[out_key] = Udag * self.spin_op[key] * U
+        return self
 
-    def decode(self, sign: int = 1) -> None:
+    def decode(self, sign: int = 1) -> "CatQubit":
         """Inverse of encode."""
-        self.encode(-sign)
+        return self.encode(-sign)
+
 
     # -----------------------------------------------------------------------
     # Logical gates
@@ -237,12 +264,10 @@ class CatQubit(SpinInterface):
 
     def plot_state(self, title: str = None) -> tuple:
         """Wigner function + z- and x-basis population bars for the current state."""
-        from psyduck.plotting import plot_wigner_and_populations
         return plot_wigner_and_populations(self.state, title=title)
 
     def plot_logic_exp_values(self, Iz_basis: bool = False, ax=None):
         """Bar chart of logical Pauli expectation values plus purity."""
-        import matplotlib.pyplot as plt
         exp_values = self.logic_exp_values(Iz_basis)
         if ax is None:
             plt.figure(figsize=(5.5, 3))
@@ -260,7 +285,6 @@ class CatQubit(SpinInterface):
 
         :param projection: 'hammer' (default), '3d', or 'polar'
         """
-        from psyduck.plotting import wigner_plot_hammer, wigner_plot_3d, wigner_plot_polar
         dispatch = {
             'hammer': wigner_plot_hammer,
             '3d':     wigner_plot_3d,
