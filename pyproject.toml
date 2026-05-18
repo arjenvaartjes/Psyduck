@@ -24,7 +24,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3"]
+dev = [
+    "pytest>=8.3",
+    "nbdime>=4.0",
+    "nbstripout>=0.7",
+    "pre-commit>=3.7",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

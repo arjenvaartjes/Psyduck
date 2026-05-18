@@ -11,7 +11,21 @@
       "Bash(ls /c/Python*)",
       "Read(//c/Users/z5380600/**)",
       "Bash(jq -r '.cells[0].source | join\\(\"\"\\)' \"/Users/sean/Code/Psyduck/examples/chaosqkt/ClassicalSimulations.ipynb\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(python3 *)",
+      "Bash(uv sync *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(git -C /Users/sean/Code/Psyduck log --oneline -5 -- examples/Hyperfine/NuclearRamseyElectronMeasurement.ipynb)",
+      "Bash(git -C /Users/sean/Code/Psyduck status)",
+      "Bash(awk '{print $2}')",
+      "Bash(grep \"\\\\.ipynb$\")",
+      "Bash(git *')",
+      "WebSearch",
+      "WebFetch(domain:arxiv.org)",
+      "Bash(brew install *)",
+      "Bash(pdftotext -layout /Users/sean/.claude/projects/-Users-sean-Code-Psyduck/2c191c07-6dcc-4e1e-9a75-342c48693885/tool-results/webfetch-1779081597518-x6t3jk.pdf /tmp/blocher_otoc.txt)",
+      "Bash(echo \"check exit=$?\")",
+      "Bash(git restore *)"
     ]
   }
 }

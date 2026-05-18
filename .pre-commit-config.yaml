@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+
+  - repo: local
+    hooks:
+      - id: check-notebooks
+        name: Check notebooks (nbformat + nested-JSON guard)
+        entry: uv run python scripts/check_notebooks.py
+        language: system
+        files: \.ipynb$
+        require_serial: true

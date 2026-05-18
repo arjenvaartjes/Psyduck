@@ -7,7 +7,7 @@ from numpy import ndarray
 
 from psyduck.fit_toolbox import ExponentialFit
 from psyduck.hamiltonians import Hz_order
-from psyduck.operations import get_spin_operators
+from psyduck.operations import get_spin_operators, global_rotation
 from psyduck.spin import Spin
 
 
@@ -162,6 +162,102 @@ def kicked_dynamics(psi_initial, tau, kappa, I, N=1, order=2, pulse_type='pulse'
         overlap_list.append(abs(psi_initial_normalized.dag() * spin.state))
         entropy_list.append(spin.linear_entropy())
         exp_list.append([spin.expectation(Ix), spin.expectation(Iy), spin.expectation(Iz)])
-    
+
     return psi_list, overlap_list, entropy_list, exp_list
+
+
+# ============================================================================
+# Out-of-time-ordered correlator (OTOC) reconstruction
+# ============================================================================
+
+def otoc_trajectory(states, theta, phi, eps, j=7/2):
+    """
+    Compute the OTOC trajectory C(t) = 1 - F(t) from a forward-evolved state list.
+
+    Implements the Blocher et al. protocol (Phys. Rev. A 106, 042429, Eqs. 6-7
+    and Section III.E) for the choice V(0) = |theta, phi><theta, phi| and
+    W_eps = R(theta, phi) exp(-i eps Jz) R†(theta, phi):
+
+        F(t) = |<W_eps(t)>|^2 = | sum_m P_m(t) exp(-i eps m) |^2
+        C(t) = 1 - F(t)
+
+    where P_m(t) = |<J, m| R†(theta, phi) |psi(t)>|^2 are the populations of
+    psi(t) in the eigenbasis of W_eps.
+
+    Parameters
+    ----------
+    states : list[qutip.Qobj]
+        Forward-evolved trajectory (kets or density matrices).
+    theta, phi : float
+        Polar/azimuthal angles defining both the initial spin-coherent state
+        and the W_eps rotation axis.
+    eps : float
+        Rotation angle in W_eps = exp(-i eps n.J). Eigenvalues lambda_m =
+        exp(-i eps m); eigenstates do not depend on eps.
+    j : float, optional
+        Total angular momentum quantum number (default 7/2).
+
+    Returns
+    -------
+    C_values : ndarray
+        OTOC growth signal C(t) = 1 - F(t).
+    F_values : ndarray
+        OTOC reconstruction F(t) = |<W_eps(t)>|^2.
+    populations : ndarray, shape (n_states, dim)
+        P_m(t) in the W_eps eigenbasis, m ordered +j -> -j.
+    m_vals : ndarray
+        Magnetic quantum numbers [+j, +j-1, ..., -j].
+    """
+    # --- One-time setup -----------------------------------------------------
+    # R(theta, phi) = Rz(phi) Ry(theta) rotates |J, J> to the spin-coherent
+    # state |theta, phi> and simultaneously diagonalizes W_eps. Building it
+    # once and reusing across the trajectory is cheaper than rebuilding per
+    # state.
+    rotation = global_rotation(j, phi, 'z') * global_rotation(j, theta, 'y')
+    R_dag = rotation.dag()
+
+    # Magnetic quantum numbers ordered to match QuTiP's diag convention:
+    # jmat(j, 'z') has eigenvalues from +j (index 0) down to -j (last index),
+    # so populations[i] corresponds to m = j - i.
+    m_vals = np.arange(j, -j - 1, -1, dtype=float)
+
+    # Eigenvalues lambda_m = exp(-i eps m) of W_eps in the rotated basis.
+    # These depend only on eps, so the same array is reused for every state —
+    # a single trajectory yields F(t) for any eps via post-processing.
+    phases = np.exp(-1j * eps * m_vals)
+
+    populations = []
+    F_values = []
+    C_values = []
+
+    for state in states:
+        # --- Step 1: sample populations P_m(t) in the W_eps eigenbasis -----
+        # For a ket, rotate the state vector directly: psi' = R† psi, then
+        # P_m = |psi'_m|^2. For a density matrix, rho' = R† rho R, and
+        # P_m = diag(rho')_m. The ket branch avoids forming the (d x d)
+        # density matrix and is what we hit for sesolve/kicked_dynamics output.
+        if state.isket:
+            psi_prime = R_dag * state
+            probs = np.abs(psi_prime.full().ravel()) ** 2
+        else:
+            rho_prime = R_dag * state * rotation
+            probs = np.real_if_close(np.array(rho_prime.diag(), dtype=complex)).real
+
+        # --- Step 2: reconstruct <W_eps>, F(t), and C(t) -------------------
+        # <W_eps(t)> = sum_m P_m(t) lambda_m  (Blocher Eq. 7)
+        # F(t)      = |<W_eps(t)>|^2          (Blocher Eq. 6)
+        # C(t)      = 1 - F(t)                (growth signal, paper below Eq. 2)
+        W_expect = np.sum(probs.astype(complex) * phases)
+        F_value = float(np.abs(W_expect) ** 2)
+
+        populations.append(probs)
+        F_values.append(F_value)
+        C_values.append(1.0 - F_value)
+
+    return (
+        np.array(C_values, dtype=float),
+        np.array(F_values, dtype=float),
+        np.array(populations, dtype=float),
+        m_vals,
+    )
 
