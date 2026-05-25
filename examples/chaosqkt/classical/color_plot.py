@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import trange
 
-import examples.chaosqkt.ClassicalSimFunc as cf
-
+import examples.ChaosQKT.ClassicalSimFunc as cf
 #%%
 n_seeds_phi= 20  # 100
 n_seeds_theta= 20  # 100

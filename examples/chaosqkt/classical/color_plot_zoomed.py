@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from tqdm import trange
 
-import examples.chaosqkt.ClassicalSimFunc as cf
+import examples.ChaosQKT.ClassicalSimFunc as cf
 
 # ============================================================================
 # CONFIGURATION  — edit these values to control every aspect of the run
