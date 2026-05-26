@@ -26,7 +26,10 @@
       "Bash(pdftotext -layout /Users/sean/.claude/projects/-Users-sean-Code-Psyduck/2c191c07-6dcc-4e1e-9a75-342c48693885/tool-results/webfetch-1779081597518-x6t3jk.pdf /tmp/blocher_otoc.txt)",
       "Bash(echo \"check exit=$?\")",
       "Bash(git restore *)",
-      "Bash(py *)"
+      "Bash(py *)",
+      "Bash(awk 'NR>=490 && NR<=640' \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ClassicalSimulations.ipynb\")",
+      "Bash(awk 'NR>=640 && NR<=940' \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ClassicalSimulations.ipynb\")",
+      "Bash(python -c ' *)"
     ]
   }
 }
