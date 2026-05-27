@@ -381,3 +381,28 @@ def drive_hamiltonian(
         H_drive.append([Tx[k], 2 * np.pi * np.real(signal)])
         H_drive.append([Ty[k], 2 * np.pi * np.imag(signal)])
     return H_drive
+
+
+def Hz_order(kappa, order, spin_I):
+    """
+    Create a higher-order Hamiltonian for the kicked-top.
+
+    H_z^(order) = kappa * Iz^order / (order * I^(order-1))
+
+    Parameters
+    ----------
+    kappa : float
+        Kick strength parameter.
+    order : int
+        Order of the Hamiltonian (typically 2 or 3).
+    spin_I : float
+        Spin quantum number (e.g., 7/2 for a qutrit).
+
+    Returns
+    -------
+    qutip.Qobj
+        Higher-order Hamiltonian as a QuTiP operator.
+    """
+    Iz = qt.jmat(spin_I, 'z')
+    H = kappa * (Iz ** order) / (order * (spin_I ** (order - 1)))
+    return H
