@@ -29,7 +29,10 @@
       "Bash(py *)",
       "Bash(awk 'NR>=490 && NR<=640' \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ClassicalSimulations.ipynb\")",
       "Bash(awk 'NR>=640 && NR<=940' \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ClassicalSimulations.ipynb\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(grep -n \"H_free\\\\|H_kick\\\\|H\\(t\\)\\\\|H\\(τ\\)\\\\|mathcal{H}\\\\|kappa.*Iz\\\\|Iz.*kappa\\\\|\\\\\\\\\\\\\\\\frac{\\\\\\\\\\\\\\\\kappa}\\\\|\\\\\\\\\\\\\\\\pi}{2\\\\\\\\\\\\\\\\tau}\" \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ChaosQKT_psyduck.ipynb\")",
+      "Bash(grep -n \"I_z\\\\|I_y\\\\|H\\(t\\)\\\\|H_0\\\\|H_{0}\\\\|kicked\\\\|Hamiltonian\\\\|kappa\\\\|\\\\\\\\\\\\\\\\kappa\" \"c:/Users/z5459034/Documents/Gits/Psyduck/examples/ChaosQKT/ChaosQKT_psyduck.ipynb\")",
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" checkout HEAD -- examples/ChaosQKT/ChaosQKT_psyduck.ipynb)"
     ]
   }
 }

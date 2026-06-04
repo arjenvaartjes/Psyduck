@@ -214,6 +214,57 @@ def spherical_plot_3d_with_projections(data, theta_mesh=None, phi_mesh=None, cma
     return fig, ax, pcm
 
 
+def spherical_plot_rectangular(data, theta_mesh=None, phi_mesh=None, cmap='bwr',
+                               vmin=None, vmax=None, fig=None, ax=None, **kwargs):
+    """Plot scalar data on a rectangular (phi, theta) map.
+
+    Azimuthal angle phi maps to the x-axis, polar angle theta to the y-axis
+    (theta=0 at the top, theta=pi at the bottom — same convention as the
+    Poincaré sections in ``poincare_plot_rectangular``).
+
+    :param data: 2-D array of values, shape (n_theta, n_phi) — theta-major.
+    :param theta_mesh: Polar-angle mesh in [0, pi], same shape as data.
+                       Defaults to linspace(0, pi, n_theta) derived from data.shape.
+    :param phi_mesh: Azimuthal-angle mesh in [-pi, pi], same shape as data.
+                     Defaults to linspace(-pi, pi, n_phi) derived from data.shape.
+    :param cmap: Matplotlib colormap name or object.
+    :param vmin: Colour-scale minimum (default: data.min()).
+    :param vmax: Colour-scale maximum (default: data.max()).
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing Axes; created if None.
+    :param kwargs: Forwarded to ax.pcolormesh.
+    :return: (fig, ax, pcm)
+    """
+    if theta_mesh is None or phi_mesh is None:
+        n_theta, n_phi = data.shape
+        _theta, _phi = np.meshgrid(np.linspace(0, np.pi, n_theta),
+                                   np.linspace(-np.pi, np.pi, n_phi),
+                                   indexing='ij')
+        if theta_mesh is None:
+            theta_mesh = _theta
+        if phi_mesh is None:
+            phi_mesh = _phi
+    if ax is None:
+        if fig is None:
+            fig, ax = plt.subplots()
+        else:
+            ax = fig.add_subplot(111)
+
+    pcm = ax.pcolormesh(phi_mesh, theta_mesh, data,
+                        cmap=cmap, vmin=vmin, vmax=vmax,
+                        shading=kwargs.pop('shading', 'auto'), **kwargs)
+
+    ax.set_xlim(phi_mesh.min(), phi_mesh.max())
+    ax.set_ylim(theta_mesh.max(), theta_mesh.min())  # theta=0 at the top
+    ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+    ax.set_xticklabels([r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
+    ax.set_yticks([0, np.pi / 2, np.pi])
+    ax.set_yticklabels(['0', r'$\pi/2$', r'$\pi$'])
+    ax.set_xlabel(r'$\phi$')
+    ax.set_ylabel(r'$\theta$')
+    return fig, ax, pcm
+
+
 def spherical_plot_polar(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=None, vmax=None,
                          fig=None, ax=None, **kwargs):
     """Plot scalar data on a polar (azimuthal equidistant) projection.
@@ -432,6 +483,41 @@ def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='w
                                  fig=fig, ax=ax, **kwargs)
 
 
+def wigner_plot_rectangular(rho, n_theta=101, n_phi=201, cmap='bwr',
+                            prob_function='wigner', vmin=None, vmax=None,
+                            fig=None, ax=None, **kwargs):
+    """Plot spin Wigner / Husimi function as a flat rectangular (phi, theta) map.
+
+    Phi spans [-pi, pi] on the x-axis, theta spans [0, pi] on the y-axis with
+    theta=0 at the top — matching the Poincaré-section convention used in
+    ``poincare_plot_rectangular``.
+
+    :param rho: QuTiP Qobj state vector or density matrix.
+    :param n_theta: Number of polar-angle grid points.
+    :param n_phi: Number of azimuthal-angle grid points.
+    :param cmap: Matplotlib colormap.
+    :param prob_function: 'wigner' or 'husimi'.
+    :param vmin/vmax: Colour-scale limits.
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing Axes; created if None.
+    :param kwargs: Forwarded to ax.pcolormesh.
+    :return: (fig, ax, pcm)
+    """
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(-np.pi, np.pi, n_phi)
+    if prob_function == 'husimi':
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'wigner':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    else:
+        raise ValueError(f"prob_function must be 'wigner' or 'husimi', got {prob_function!r}")
+
+    # qt.spin_*_function returns shape (n_phi, n_theta); transpose to theta-major.
+    return spherical_plot_rectangular(W.T, theta_mesh.T, phi_mesh.T,
+                                      cmap=cmap, vmin=vmin, vmax=vmax,
+                                      fig=fig, ax=ax, **kwargs)
+
+
 def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigner',
                       vmin=None, vmax=None, fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a polar (azimuthal equidistant) projection.
@@ -539,12 +625,13 @@ def make_wigner_gif(states, filename='wigner.gif', projection='hammer', fps=10, 
         qstates = list(states)
 
     _plot_funcs = {
-        '3d':     wigner_plot_3d,
-        'hammer': wigner_plot_hammer,
-        'polar':  wigner_plot_polar,
+        '3d':          wigner_plot_3d,
+        'hammer':      wigner_plot_hammer,
+        'polar':       wigner_plot_polar,
+        'rectangular': wigner_plot_rectangular,
     }
     if projection not in _plot_funcs:
-        raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
+        raise ValueError(f"projection must be '3d', 'hammer', 'polar', or 'rectangular', got {projection!r}")
     plot_fn = _plot_funcs[projection]
 
     frames = []
