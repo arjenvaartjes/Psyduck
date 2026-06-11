@@ -214,6 +214,57 @@ def spherical_plot_3d_with_projections(data, theta_mesh=None, phi_mesh=None, cma
     return fig, ax, pcm
 
 
+def spherical_plot_rectangular(data, theta_mesh=None, phi_mesh=None, cmap='bwr',
+                               vmin=None, vmax=None, fig=None, ax=None, **kwargs):
+    """Plot scalar data on a rectangular (phi, theta) map.
+
+    Azimuthal angle phi maps to the x-axis, polar angle theta to the y-axis
+    (theta=0 at the top, theta=pi at the bottom — same convention as the
+    Poincaré sections in ``poincare_plot_rectangular``).
+
+    :param data: 2-D array of values, shape (n_theta, n_phi) — theta-major.
+    :param theta_mesh: Polar-angle mesh in [0, pi], same shape as data.
+                       Defaults to linspace(0, pi, n_theta) derived from data.shape.
+    :param phi_mesh: Azimuthal-angle mesh in [-pi, pi], same shape as data.
+                     Defaults to linspace(-pi, pi, n_phi) derived from data.shape.
+    :param cmap: Matplotlib colormap name or object.
+    :param vmin: Colour-scale minimum (default: data.min()).
+    :param vmax: Colour-scale maximum (default: data.max()).
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing Axes; created if None.
+    :param kwargs: Forwarded to ax.pcolormesh.
+    :return: (fig, ax, pcm)
+    """
+    if theta_mesh is None or phi_mesh is None:
+        n_theta, n_phi = data.shape
+        _theta, _phi = np.meshgrid(np.linspace(0, np.pi, n_theta),
+                                   np.linspace(-np.pi, np.pi, n_phi),
+                                   indexing='ij')
+        if theta_mesh is None:
+            theta_mesh = _theta
+        if phi_mesh is None:
+            phi_mesh = _phi
+    if ax is None:
+        if fig is None:
+            fig, ax = plt.subplots()
+        else:
+            ax = fig.add_subplot(111)
+
+    pcm = ax.pcolormesh(phi_mesh, theta_mesh, data,
+                        cmap=cmap, vmin=vmin, vmax=vmax,
+                        shading=kwargs.pop('shading', 'auto'), **kwargs)
+
+    ax.set_xlim(phi_mesh.min(), phi_mesh.max())
+    ax.set_ylim(theta_mesh.max(), theta_mesh.min())  # theta=0 at the top
+    ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+    ax.set_xticklabels([r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
+    ax.set_yticks([0, np.pi / 2, np.pi])
+    ax.set_yticklabels(['0', r'$\pi/2$', r'$\pi$'])
+    ax.set_xlabel(r'$\phi$')
+    ax.set_ylabel(r'$\theta$')
+    return fig, ax, pcm
+
+
 def spherical_plot_polar(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=None, vmax=None,
                          fig=None, ax=None, **kwargs):
     """Plot scalar data on a polar (azimuthal equidistant) projection.
@@ -252,6 +303,82 @@ def spherical_plot_polar(data, theta_mesh=None, phi_mesh=None, cmap='bwr', vmin=
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     return fig, ax
+
+
+def spherical_plot_stereographic(data, theta_mesh=None, phi_mesh=None, cmap='bwr',
+                                 vmin=None, vmax=None, fig=None, ax=None,
+                                 pole='south', r_max=None, **kwargs):
+    """Plot scalar data on a stereographic projection of the sphere.
+
+    Stereographic projection maps the sphere (minus one pole) onto a plane and
+    is conformal — angles between curves are preserved, although areas are not.
+
+    With ``pole='south'`` the projection point sits at theta = pi, so the north
+    pole (theta = 0) maps to the origin of the plot and points near the south
+    pole are pushed outward.  In that convention the planar radius is
+
+        r = tan(theta / 2),
+
+    and the Cartesian coordinates on the plane are
+    ``x = r cos(phi), y = r sin(phi)``.  With ``pole='north'`` the roles swap
+    and ``r = cot(theta / 2)``.
+
+    :param data: 2-D array of values, shape (n_theta, n_phi).
+    :param theta_mesh: Polar-angle mesh in [0, pi].
+                       Defaults to linspace(0, pi, n_theta) derived from data.shape.
+    :param phi_mesh: Azimuthal-angle mesh; either [0, 2 pi] or [-pi, pi] works.
+                     Defaults to linspace(0, 2 pi, n_phi) derived from data.shape.
+    :param cmap: Matplotlib colormap name or object.
+    :param vmin: Colour-scale minimum (default: data.min()).
+    :param vmax: Colour-scale maximum (default: data.max()).
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing Axes; created if None.
+    :param pole: 'south' (default) or 'north'. Selects which pole is the
+                 projection point (and therefore which pole maps to infinity).
+    :param r_max: Planar truncation radius. Points with r > r_max are masked so
+                  the plot stays bounded. Defaults to tan(0.45*pi) ~ 6.31,
+                  which keeps everything up to theta ~ 162 deg (south-pole case).
+    :param kwargs: Forwarded to ax.pcolormesh.
+    :return: (fig, ax, pcm)
+    """
+    if theta_mesh is None or phi_mesh is None:
+        n_theta, n_phi = data.shape
+        _theta, _phi = np.meshgrid(np.linspace(0, np.pi, n_theta),
+                                   np.linspace(0, 2 * np.pi, n_phi),
+                                   indexing='ij')
+        if theta_mesh is None:
+            theta_mesh = _theta
+        if phi_mesh is None:
+            phi_mesh = _phi
+
+    if pole == 'south':
+        r_proj = np.tan(np.clip(theta_mesh, 0.0, np.pi - 1e-12) / 2)
+    elif pole == 'north':
+        r_proj = 1.0 / np.tan(np.clip(theta_mesh, 1e-12, np.pi) / 2)
+    else:
+        raise ValueError("pole must be 'south' or 'north'")
+
+    if r_max is None:
+        r_max = np.tan(0.45 * np.pi)
+
+    plot_data = np.ma.masked_where(r_proj > r_max, data)
+
+    x = r_proj * np.cos(phi_mesh)
+    y = r_proj * np.sin(phi_mesh)
+
+    if ax is None:
+        if fig is None:
+            fig, ax = plt.subplots()
+        else:
+            ax = fig.add_subplot(111)
+
+    pcm = ax.pcolormesh(x, y, plot_data, cmap=cmap, vmin=vmin, vmax=vmax, **kwargs)
+    ax.set_aspect('equal')
+    ax.set_xlim(-r_max, r_max)
+    ax.set_ylim(-r_max, r_max)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    return fig, ax, pcm
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +483,41 @@ def wigner_plot_hammer(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='w
                                  fig=fig, ax=ax, **kwargs)
 
 
+def wigner_plot_rectangular(rho, n_theta=101, n_phi=201, cmap='bwr',
+                            prob_function='wigner', vmin=None, vmax=None,
+                            fig=None, ax=None, **kwargs):
+    """Plot spin Wigner / Husimi function as a flat rectangular (phi, theta) map.
+
+    Phi spans [-pi, pi] on the x-axis, theta spans [0, pi] on the y-axis with
+    theta=0 at the top — matching the Poincaré-section convention used in
+    ``poincare_plot_rectangular``.
+
+    :param rho: QuTiP Qobj state vector or density matrix.
+    :param n_theta: Number of polar-angle grid points.
+    :param n_phi: Number of azimuthal-angle grid points.
+    :param cmap: Matplotlib colormap.
+    :param prob_function: 'wigner' or 'husimi'.
+    :param vmin/vmax: Colour-scale limits.
+    :param fig: Existing Figure; created if None.
+    :param ax: Existing Axes; created if None.
+    :param kwargs: Forwarded to ax.pcolormesh.
+    :return: (fig, ax, pcm)
+    """
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(-np.pi, np.pi, n_phi)
+    if prob_function == 'husimi':
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'wigner':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+    else:
+        raise ValueError(f"prob_function must be 'wigner' or 'husimi', got {prob_function!r}")
+
+    # qt.spin_*_function returns shape (n_phi, n_theta); transpose to theta-major.
+    return spherical_plot_rectangular(W.T, theta_mesh.T, phi_mesh.T,
+                                      cmap=cmap, vmin=vmin, vmax=vmax,
+                                      fig=fig, ax=ax, **kwargs)
+
+
 def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wigner',
                       vmin=None, vmax=None, fig=None, ax=None, **kwargs):
     """Plot spin Wigner function on a polar (azimuthal equidistant) projection.
@@ -372,6 +534,29 @@ def wigner_plot_polar(rho, n_theta=101, n_phi=201, cmap='bwr', prob_function='wi
 
     return spherical_plot_polar(W, theta_mesh, phi_mesh, cmap=cmap, vmin=vmin, vmax=vmax,
                                 fig=fig, ax=ax, **kwargs)
+
+
+def wigner_plot_stereographic(rho, n_theta=101, n_phi=201, cmap='bwr',
+                              prob_function='wigner', vmin=None, vmax=None,
+                              fig=None, ax=None, pole='south', r_max=None, **kwargs):
+    """Plot spin Wigner function on a stereographic projection.
+
+    Conformal (angle-preserving) projection of the spin Wigner/Husimi function
+    onto a plane.  With ``pole='south'`` (default) the north pole (theta=0)
+    maps to the origin of the plot; with ``pole='north'`` the south pole
+    (theta=pi) maps to the origin.  See :func:`spherical_plot_stereographic`
+    for the mapping.
+    """
+    theta = np.linspace(0, np.pi, n_theta)
+    phi = np.linspace(0, 2 * np.pi, n_phi)
+    if prob_function == 'husimi':
+        W, theta_mesh, phi_mesh = spin_q_function(rho, theta, phi)
+    elif prob_function == 'wigner':
+        W, theta_mesh, phi_mesh = spin_wigner(rho, theta, phi)
+
+    return spherical_plot_stereographic(W, theta_mesh, phi_mesh, cmap=cmap,
+                                        vmin=vmin, vmax=vmax, fig=fig, ax=ax,
+                                        pole=pole, r_max=r_max, **kwargs)
 
 
 def plot_wigner_evolution_frame(kick_number, psi_list, entropy_list, overlap_list,
@@ -440,12 +625,13 @@ def make_wigner_gif(states, filename='wigner.gif', projection='hammer', fps=10, 
         qstates = list(states)
 
     _plot_funcs = {
-        '3d':     wigner_plot_3d,
-        'hammer': wigner_plot_hammer,
-        'polar':  wigner_plot_polar,
+        '3d':          wigner_plot_3d,
+        'hammer':      wigner_plot_hammer,
+        'polar':       wigner_plot_polar,
+        'rectangular': wigner_plot_rectangular,
     }
     if projection not in _plot_funcs:
-        raise ValueError(f"projection must be '3d', 'hammer', or 'polar', got {projection!r}")
+        raise ValueError(f"projection must be '3d', 'hammer', 'polar', or 'rectangular', got {projection!r}")
     plot_fn = _plot_funcs[projection]
 
     frames = []

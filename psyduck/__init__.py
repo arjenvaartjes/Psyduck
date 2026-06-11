@@ -5,7 +5,9 @@ from .spin_composite import SpinComposite
 from .cat_qubit import CatQubit
 from . import operations
 from . import hamiltonians
+from . import classical_dynamics
 from . import evolve
 
 
-__all__ = ["Spin", "SpinSeries", "SpinInterface", "SpinComposite", "CatQubit", "operations", "hamiltonians", "evolve"]
+__all__ = ["Spin", "SpinSeries", "SpinInterface", "SpinComposite", "CatQubit",
+           "operations", "hamiltonians", "classical_dynamics", "evolve"]

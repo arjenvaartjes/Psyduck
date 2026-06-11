@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" ls-files)",
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" checkout HEAD -- examples/chaosqkt/ChaosQKT_psyduck.ipynb)",
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" checkout HEAD -- examples/chaosqkt/ClassicalSimulations.ipynb)",
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" log --oneline -5 examples/chaosqkt/ClassicalSimulations.ipynb)",
+      "Bash(git -C \"c:/Users/z5459034/Documents/Gits/Psyduck\" show HEAD:examples/chaosqkt/ClassicalSimulations.ipynb)"
+    ]
+  }
+}
